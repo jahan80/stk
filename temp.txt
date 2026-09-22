@@ -1,0 +1,288 @@
+.
+├── audit-service
+│   ├── pom.xml
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── starterkit
+│   │   │   │           └── audit
+│   │   │   │               └── AuditServiceApplication.java
+│   │   │   └── resources
+│   │   └── test
+│   │       └── java
+│   │           └── com
+│   │               └── starterkit
+│   │                   └── audit
+│   └── target
+│       ├── audit-service-0.0.1-SNAPSHOT.jar
+│       ├── audit-service-0.0.1-SNAPSHOT.jar.original
+│       ├── classes
+│       │   └── com
+│       │       └── starterkit
+│       │           └── audit
+│       │               └── AuditServiceApplication.class
+│       ├── generated-sources
+│       │   └── annotations
+│       ├── generated-test-sources
+│       │   └── test-annotations
+│       ├── maven-archiver
+│       │   └── pom.properties
+│       ├── maven-status
+│       │   └── maven-compiler-plugin
+│       │       ├── compile
+│       │       │   └── default-compile
+│       │       │       ├── createdFiles.lst
+│       │       │       └── inputFiles.lst
+│       │       └── testCompile
+│       │           └── default-testCompile
+│       │               ├── createdFiles.lst
+│       │               └── inputFiles.lst
+│       └── test-classes
+├── auth-service
+│   ├── pom.xml
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── starterkit
+│   │   │   │           └── auth
+│   │   │   │               └── AuthServiceApplication.java
+│   │   │   └── resources
+│   │   └── test
+│   │       └── java
+│   │           └── com
+│   │               └── starterkit
+│   │                   └── auth
+│   └── target
+│       ├── auth-service-0.0.1-SNAPSHOT.jar
+│       ├── auth-service-0.0.1-SNAPSHOT.jar.original
+│       ├── classes
+│       │   └── com
+│       │       └── starterkit
+│       │           └── auth
+│       │               └── AuthServiceApplication.class
+│       ├── generated-sources
+│       │   └── annotations
+│       ├── generated-test-sources
+│       │   └── test-annotations
+│       ├── maven-archiver
+│       │   └── pom.properties
+│       ├── maven-status
+│       │   └── maven-compiler-plugin
+│       │       ├── compile
+│       │       │   └── default-compile
+│       │       │       ├── createdFiles.lst
+│       │       │       └── inputFiles.lst
+│       │       └── testCompile
+│       │           └── default-testCompile
+│       │               ├── createdFiles.lst
+│       │               └── inputFiles.lst
+│       └── test-classes
+├── pom.xml
+└── temp.txt
+
+60 directories, 22 files
+.
+├── DocBE_v0.1.docx
+├── Doc_EndPint_v0.1.docx
+├── all_java_files.txt
+├── all_project_files.txt
+├── audit-service
+│   ├── pom.xml
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── starterkit
+│   │   │   │           └── audit
+│   │   │   │               └── AuditServiceApplication.java
+│   │   │   └── resources
+│   │   └── test
+│   │       └── java
+│   │           └── com
+│   │               └── starterkit
+│   │                   └── audit
+│   └── target
+│       ├── audit-service-0.0.1-SNAPSHOT.jar
+│       ├── audit-service-0.0.1-SNAPSHOT.jar.original
+│       ├── classes
+│       │   └── com
+│       │       └── starterkit
+│       │           └── audit
+│       │               └── AuditServiceApplication.class
+│       ├── generated-sources
+│       │   └── annotations
+│       ├── generated-test-sources
+│       │   └── test-annotations
+│       ├── maven-archiver
+│       │   └── pom.properties
+│       ├── maven-status
+│       │   └── maven-compiler-plugin
+│       │       ├── compile
+│       │       │   └── default-compile
+│       │       │       ├── createdFiles.lst
+│       │       │       └── inputFiles.lst
+│       │       └── testCompile
+│       │           └── default-testCompile
+│       │               ├── createdFiles.lst
+│       │               └── inputFiles.lst
+│       └── test-classes
+├── auth-service
+│   ├── pom.xml
+│   ├── src
+│   │   ├── main
+│   │   │   ├── java
+│   │   │   │   └── com
+│   │   │   │       └── starterkit
+│   │   │   │           └── auth
+│   │   │   │               ├── AuthServiceApplication.java
+│   │   │   │               ├── api
+│   │   │   │               │   ├── AuthController.java
+│   │   │   │               │   ├── GlobalExceptionHandler.java
+│   │   │   │               │   └── response
+│   │   │   │               │       ├── ApiCode.java
+│   │   │   │               │       ├── ApiResponse.java
+│   │   │   │               │       ├── ApiResponseFactory.java
+│   │   │   │               │       └── ValidationErrorResponse.java
+│   │   │   │               ├── application
+│   │   │   │               │   ├── LoginConfigurationValidator.java
+│   │   │   │               │   ├── dto
+│   │   │   │               │   │   ├── LoginRequest.java
+│   │   │   │               │   │   ├── LoginResponse.java
+│   │   │   │               │   │   ├── RegisterRequest.java
+│   │   │   │               │   │   └── UserResponse.java
+│   │   │   │               │   ├── exception
+│   │   │   │               │   │   └── UserAlreadyExistsException.java
+│   │   │   │               │   └── service
+│   │   │   │               │       └── AuthService.java
+│   │   │   │               ├── config
+│   │   │   │               │   ├── CorsConfig.java
+│   │   │   │               │   ├── SecurityConfig.java
+│   │   │   │               │   └── TraceIdFilter.java
+│   │   │   │               ├── configuration
+│   │   │   │               │   ├── api
+│   │   │   │               │   │   ├── ConfigurationController.java
+│   │   │   │               │   │   └── dto
+│   │   │   │               │   ├── application
+│   │   │   │               │   │   ├── ConfigurationService.java
+│   │   │   │               │   │   └── RegisterConfigurationValidator.java
+│   │   │   │               │   ├── domain
+│   │   │   │               │   │   ├── entity
+│   │   │   │               │   │   └── repository
+│   │   │   │               │   └── exception
+│   │   │   │               │       ├── ConfigurationAlreadyExistsException.java
+│   │   │   │               │       ├── ConfigurationNotFoundException.java
+│   │   │   │               │       └── ConfigurationValidationException.java
+│   │   │   │               └── domain
+│   │   │   │                   ├── entity
+│   │   │   │                   │   ├── BaseEntity.java
+│   │   │   │                   │   └── User.java
+│   │   │   │                   └── repository
+│   │   │   │                       └── UserRepository.java
+│   │   │   └── resources
+│   │   │       ├── application.properties
+│   │   │       └── db
+│   │   │           └── migration
+│   │   │               ├── V1__create_users_table.sql
+│   │   │               ├── V2__change_users_id_to_bigint.sql
+│   │   │               ├── V3__use_timestamp_with_timezone.sql
+│   │   │               ├── V4__create_register_field_configs.sql
+│   │   │               ├── V5__make_email_nullable.sql
+│   │   │               ├── V6__remove_fixed_register_configurations.sql
+│   │   │               ├── V7__add_default_value_to_configurations.sql
+│   │   │               └── V8__seed_login_configurations.sql
+│   │   └── test
+│   │       └── java
+│   │           └── com
+│   │               └── starterkit
+│   │                   └── auth
+│   └── target
+│       ├── auth-service-0.0.1-SNAPSHOT.jar
+│       ├── auth-service-0.0.1-SNAPSHOT.jar.original
+│       ├── classes
+│       │   ├── application.properties
+│       │   ├── com
+│       │   │   └── starterkit
+│       │   │       └── auth
+│       │   │           ├── AuthServiceApplication.class
+│       │   │           ├── api
+│       │   │           │   ├── AuthController.class
+│       │   │           │   ├── GlobalExceptionHandler.class
+│       │   │           │   └── response
+│       │   │           │       ├── ApiCode.class
+│       │   │           │       ├── ApiResponse$ApiResponseBuilder.class
+│       │   │           │       ├── ApiResponse.class
+│       │   │           │       ├── ApiResponseFactory.class
+│       │   │           │       ├── ValidationErrorResponse$ValidationErrorResponseBuilder.class
+│       │   │           │       └── ValidationErrorResponse.class
+│       │   │           ├── application
+│       │   │           │   ├── dto
+│       │   │           │   │   ├── RegisterRequest.class
+│       │   │           │   │   ├── UserResponse$UserResponseBuilder.class
+│       │   │           │   │   └── UserResponse.class
+│       │   │           │   ├── exception
+│       │   │           │   │   └── UserAlreadyExistsException.class
+│       │   │           │   └── service
+│       │   │           │       └── AuthService.class
+│       │   │           ├── config
+│       │   │           │   ├── CorsConfig.class
+│       │   │           │   ├── SecurityConfig.class
+│       │   │           │   └── TraceIdFilter.class
+│       │   │           ├── configuration
+│       │   │           │   ├── api
+│       │   │           │   │   ├── ConfigurationController.class
+│       │   │           │   │   └── dto
+│       │   │           │   │       ├── ConfigurationRequest.class
+│       │   │           │   │       ├── ConfigurationResponse$ConfigurationResponseBuilder.class
+│       │   │           │   │       └── ConfigurationResponse.class
+│       │   │           │   ├── application
+│       │   │           │   │   ├── ConfigurationService.class
+│       │   │           │   │   └── RegisterConfigurationValidator.class
+│       │   │           │   ├── domain
+│       │   │           │   │   ├── entity
+│       │   │           │   │   │   └── Configuration.class
+│       │   │           │   │   └── repository
+│       │   │           │   │       └── ConfigurationRepository.class
+│       │   │           │   └── exception
+│       │   │           │       ├── ConfigurationAlreadyExistsException.class
+│       │   │           │       ├── ConfigurationNotFoundException.class
+│       │   │           │       ├── ConfigurationValidationException$Reason.class
+│       │   │           │       └── ConfigurationValidationException.class
+│       │   │           └── domain
+│       │   │               ├── entity
+│       │   │               │   ├── BaseEntity.class
+│       │   │               │   └── User.class
+│       │   │               └── repository
+│       │   │                   └── UserRepository.class
+│       │   └── db
+│       │       └── migration
+│       │           ├── V1__create_users_table.sql
+│       │           ├── V2__change_users_id_to_bigint.sql
+│       │           ├── V3__use_timestamp_with_timezone.sql
+│       │           ├── V4__create_register_field_configs.sql
+│       │           ├── V5__make_email_nullable.sql
+│       │           ├── V6__remove_fixed_register_configurations.sql
+│       │           ├── V7__add_default_value_to_configurations.sql
+│       │           └── V8__seed_login_configurations.sql
+│       ├── generated-sources
+│       │   └── annotations
+│       ├── generated-test-sources
+│       │   └── test-annotations
+│       ├── maven-archiver
+│       │   └── pom.properties
+│       ├── maven-status
+│       │   └── maven-compiler-plugin
+│       │       ├── compile
+│       │       │   └── default-compile
+│       │       │       ├── createdFiles.lst
+│       │       │       └── inputFiles.lst
+│       │       └── testCompile
+│       │           └── default-testCompile
+│       │               ├── createdFiles.lst
+│       │               └── inputFiles.lst
+│       └── test-classes
+├── pom.xml
+└── temp.txt
+
+100 directories, 100 files

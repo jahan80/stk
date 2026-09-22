@@ -1,0 +1,2266 @@
+================ PROJECT STRUCTURE ================
+./.idea/.gitignore
+./.idea/compiler.xml
+./.idea/encodings.xml
+./.idea/jarRepositories.xml
+./.idea/misc.xml
+./.idea/remote-targets.xml
+./.idea/uiDesigner.xml
+./.idea/workspace.xml
+./DocBE_v0.1.docx
+./Doc_EndPint_v0.1.docx
+./all_project_files.txt
+./audit-service/pom.xml
+./audit-service/src/main/java/com/starterkit/audit/AuditServiceApplication.java
+./auth-service/pom.xml
+./auth-service/src/main/java/com/starterkit/auth/AuthServiceApplication.java
+./auth-service/src/main/java/com/starterkit/auth/api/AuthController.java
+./auth-service/src/main/java/com/starterkit/auth/api/GlobalExceptionHandler.java
+./auth-service/src/main/java/com/starterkit/auth/api/response/ApiCode.java
+./auth-service/src/main/java/com/starterkit/auth/api/response/ApiResponse.java
+./auth-service/src/main/java/com/starterkit/auth/api/response/ApiResponseFactory.java
+./auth-service/src/main/java/com/starterkit/auth/api/response/ValidationErrorResponse.java
+./auth-service/src/main/java/com/starterkit/auth/application/LoginConfigurationValidator.java
+./auth-service/src/main/java/com/starterkit/auth/application/dto/LoginRequest.java
+./auth-service/src/main/java/com/starterkit/auth/application/dto/LoginResponse.java
+./auth-service/src/main/java/com/starterkit/auth/application/dto/RegisterRequest.java
+./auth-service/src/main/java/com/starterkit/auth/application/dto/UserResponse.java
+./auth-service/src/main/java/com/starterkit/auth/application/exception/LoginException.java
+./auth-service/src/main/java/com/starterkit/auth/application/exception/UserAlreadyExistsException.java
+./auth-service/src/main/java/com/starterkit/auth/application/service/AuthService.java
+./auth-service/src/main/java/com/starterkit/auth/config/CorsConfig.java
+./auth-service/src/main/java/com/starterkit/auth/config/SecurityConfig.java
+./auth-service/src/main/java/com/starterkit/auth/config/TraceIdFilter.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/api/ConfigurationController.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/api/dto/ConfigurationRequest.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/api/dto/ConfigurationResponse.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/application/ConfigurationService.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/application/RegisterConfigurationValidator.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/domain/entity/Configuration.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/domain/repository/ConfigurationRepository.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/exception/ConfigurationAlreadyExistsException.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/exception/ConfigurationNotFoundException.java
+./auth-service/src/main/java/com/starterkit/auth/configuration/exception/ConfigurationValidationException.java
+./auth-service/src/main/java/com/starterkit/auth/domain/entity/BaseEntity.java
+./auth-service/src/main/java/com/starterkit/auth/domain/entity/User.java
+./auth-service/src/main/java/com/starterkit/auth/domain/repository/UserRepository.java
+./auth-service/src/main/resources/application.properties
+./auth-service/src/main/resources/db/migration/V1__create_users_table.sql
+./auth-service/src/main/resources/db/migration/V2__change_users_id_to_bigint.sql
+./auth-service/src/main/resources/db/migration/V3__use_timestamp_with_timezone.sql
+./auth-service/src/main/resources/db/migration/V4__create_register_field_configs.sql
+./auth-service/src/main/resources/db/migration/V5__make_email_nullable.sql
+./auth-service/src/main/resources/db/migration/V6__remove_fixed_register_configurations.sql
+./auth-service/src/main/resources/db/migration/V7__add_default_value_to_configurations.sql
+./auth-service/src/main/resources/db/migration/V8__seed_login_configurations.sql
+./pom.xml
+./temp.txt
+
+================ JAVA FILES ================
+
+===== ./audit-service/src/main/java/com/starterkit/audit/AuditServiceApplication.java =====
+package com.starterkit.audit;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AuditServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(AuditServiceApplication.class, args);
+    }
+}
+
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/api/ConfigurationController.java =====
+package com.starterkit.auth.configuration.api;
+
+import com.starterkit.auth.api.response.ApiCode;
+import com.starterkit.auth.api.response.ApiResponse;
+import com.starterkit.auth.api.response.ApiResponseFactory;
+import com.starterkit.auth.configuration.api.dto.ConfigurationRequest;
+import com.starterkit.auth.configuration.api.dto.ConfigurationResponse;
+import com.starterkit.auth.configuration.application.ConfigurationService;
+import com.starterkit.auth.configuration.domain.entity.Configuration;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/auth/configurations")
+@RequiredArgsConstructor
+public class ConfigurationController {
+
+    private final ConfigurationService configurationService;
+    private final ApiResponseFactory responseFactory;
+
+    @GetMapping
+    public ApiResponse<List<ConfigurationResponse>> getAll() {
+
+        List<ConfigurationResponse> configurations =
+                configurationService.getAllEnabled()
+                        .stream()
+                        .map(this::toResponse)
+                        .toList();
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                configurations
+        );
+    }
+
+
+    @GetMapping("/{configKey}")
+    public ApiResponse<ConfigurationResponse> getByKey(
+            @PathVariable String configKey
+    ) {
+
+        Configuration configuration =
+                configurationService.getByKey(configKey);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                toResponse(configuration)
+        );
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<ConfigurationResponse> create(
+            @Valid @RequestBody ConfigurationRequest request
+    ) {
+
+        Configuration configuration =
+                configurationService.create(request);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                toResponse(configuration)
+        );
+    }
+
+    @PutMapping("/{configKey}")
+    public ApiResponse<ConfigurationResponse> update(
+            @PathVariable String configKey,
+            @Valid @RequestBody ConfigurationRequest request
+    ) {
+
+        Configuration configuration =
+                configurationService.update(configKey, request);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                toResponse(configuration)
+        );
+    }
+
+    @DeleteMapping("/{configKey}")
+    public ApiResponse<Void> delete(
+            @PathVariable String configKey
+    ) {
+
+        configurationService.delete(configKey);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                null
+        );
+    }
+
+
+    @PostMapping("/{configKey}/reset-default")
+    public ApiResponse<ConfigurationResponse> resetToDefault(
+            @PathVariable String configKey
+    ) {
+
+        Configuration configuration =
+                configurationService.resetToDefault(configKey);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                toResponse(configuration)
+        );
+    }
+    @PostMapping("/reset-defaults")
+    public ApiResponse<List<ConfigurationResponse>> resetAllToDefault() {
+
+        List<ConfigurationResponse> configurations =
+                configurationService.resetAllToDefault()
+                        .stream()
+                        .map(this::toResponse)
+                        .toList();
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                configurations
+        );
+    }
+
+    @PostMapping("/{configKey}/set-default")
+    public ApiResponse<ConfigurationResponse> setCurrentValueAsDefault(
+            @PathVariable String configKey
+    ) {
+
+        Configuration configuration =
+                configurationService.setCurrentValueAsDefault(configKey);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                toResponse(configuration)
+        );
+    }
+    private ConfigurationResponse toResponse(
+            Configuration configuration
+    ) {
+        return ConfigurationResponse.builder()
+                .id(configuration.getId())
+                .configKey(configuration.getConfigKey())
+                .configValue(configuration.getConfigValue())
+                .defaultValue(configuration.getDefaultValue())
+                .valueType(configuration.getValueType())
+                .description(configuration.getDescription())
+                .enabled(configuration.isEnabled())
+                .createdAt(configuration.getCreatedAt())
+                .updatedAt(configuration.getUpdatedAt())
+                .build();
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/api/dto/ConfigurationResponse.java =====
+package com.starterkit.auth.configuration.api.dto;
+
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.Instant;
+
+@Getter
+@Builder
+public class ConfigurationResponse {
+
+    private Long id;
+    private String configKey;
+    private String configValue;
+    private String defaultValue;
+    private String valueType;
+    private String description;
+    private boolean enabled;
+    private Instant createdAt;
+    private Instant updatedAt;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/api/dto/ConfigurationRequest.java =====
+package com.starterkit.auth.configuration.api.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class ConfigurationRequest {
+
+    @NotBlank
+    @Size(max = 200)
+    private String configKey;
+
+    @NotBlank
+    private String configValue;
+
+    @NotBlank
+    private String defaultValue;
+
+    @NotBlank
+    @Size(max = 20)
+    private String valueType;
+
+    @Size(max = 500)
+    private String description;
+
+    private boolean enabled = true;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/application/RegisterConfigurationValidator.java =====
+package com.starterkit.auth.configuration.application;
+
+import com.starterkit.auth.application.dto.RegisterRequest;
+import com.starterkit.auth.configuration.exception.ConfigurationValidationException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+@Component
+@RequiredArgsConstructor
+public class RegisterConfigurationValidator {
+
+    private final ConfigurationService configurationService;
+
+    public void validate(RegisterRequest request) {
+
+        validateRequired(
+                "username",
+                request.getUsername()
+        );
+
+        validateRequired(
+                "password",
+                request.getPassword()
+        );
+
+        validateField(
+                "email",
+                request.getEmail(),
+                "AUTH.REGISTER.EMAIL.ENABLED",
+                "AUTH.REGISTER.EMAIL.REQUIRED"
+        );
+
+        validateField(
+                "mobileNumber",
+                request.getMobileNumber(),
+                "AUTH.REGISTER.MOBILE_NUMBER.ENABLED",
+                "AUTH.REGISTER.MOBILE_NUMBER.REQUIRED"
+        );
+
+        validateField(
+                "firstName",
+                request.getFirstName(),
+                "AUTH.REGISTER.FIRST_NAME.ENABLED",
+                "AUTH.REGISTER.FIRST_NAME.REQUIRED"
+        );
+
+        validateField(
+                "lastName",
+                request.getLastName(),
+                "AUTH.REGISTER.LAST_NAME.ENABLED",
+                "AUTH.REGISTER.LAST_NAME.REQUIRED"
+        );
+    }
+
+    private void validateRequired(
+            String field,
+            String value
+    ) {
+
+        if (!StringUtils.hasText(value)) {
+            throw new ConfigurationValidationException(
+                    field,
+                    ConfigurationValidationException.Reason.REQUIRED
+            );
+        }
+    }
+
+    private void validateField(
+            String field,
+            String value,
+            String enabledKey,
+            String requiredKey
+    ) {
+
+        boolean enabled =
+                configurationService.getBoolean(enabledKey);
+
+        boolean required =
+                configurationService.getBoolean(requiredKey);
+
+        if (!enabled && StringUtils.hasText(value)) {
+            throw new ConfigurationValidationException(
+                    field,
+                    ConfigurationValidationException.Reason.DISABLED
+            );
+        }
+
+        if (enabled
+                && required
+                && !StringUtils.hasText(value)) {
+
+            throw new ConfigurationValidationException(
+                    field,
+                    ConfigurationValidationException.Reason.REQUIRED
+            );
+        }
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/application/ConfigurationService.java =====
+package com.starterkit.auth.configuration.application;
+
+import com.starterkit.auth.configuration.api.dto.ConfigurationRequest;
+import com.starterkit.auth.configuration.domain.entity.Configuration;
+import com.starterkit.auth.configuration.domain.repository.ConfigurationRepository;
+import com.starterkit.auth.configuration.exception.ConfigurationAlreadyExistsException;
+import com.starterkit.auth.configuration.exception.ConfigurationNotFoundException;
+import com.starterkit.auth.configuration.exception.ConfigurationValidationException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class ConfigurationService {
+
+    private final ConfigurationRepository configurationRepository;
+
+    public String getValue(String configKey) {
+        return getRequiredConfiguration(configKey).getConfigValue();
+    }
+
+    public String getString(String configKey) {
+        return getRequiredConfiguration(configKey).getConfigValue();
+    }
+
+    public boolean getBoolean(String configKey) {
+        return Boolean.parseBoolean(
+                getRequiredConfiguration(configKey).getConfigValue()
+        );
+    }
+
+    public int getInteger(String configKey) {
+        return Integer.parseInt(
+                getRequiredConfiguration(configKey).getConfigValue()
+        );
+    }
+
+    public long getLong(String configKey) {
+        return Long.parseLong(
+                getRequiredConfiguration(configKey).getConfigValue()
+        );
+    }
+
+    public double getDouble(String configKey) {
+        return Double.parseDouble(
+                getRequiredConfiguration(configKey).getConfigValue()
+        );
+    }
+
+    public Configuration getByKey(String configKey) {
+        return configurationRepository
+                .findByConfigKey(configKey)
+                .orElseThrow(() ->
+                        new ConfigurationNotFoundException(configKey)
+                );
+    }
+
+    public List<Configuration> getAllEnabled() {
+        return configurationRepository
+                .findAllByEnabledTrueOrderByConfigKeyAsc();
+    }
+
+    @Transactional
+    public Configuration create(ConfigurationRequest request) {
+
+        validateConfigKey(request.getConfigKey());
+        validateConfigurationValues(request);
+
+        if (configurationRepository
+                .findByConfigKey(request.getConfigKey())
+                .isPresent()) {
+
+            throw new ConfigurationAlreadyExistsException(
+                    request.getConfigKey()
+            );
+        }
+
+        Configuration configuration = new Configuration();
+
+        configuration.setConfigKey(request.getConfigKey());
+        configuration.setConfigValue(request.getConfigValue());
+        configuration.setDefaultValue(request.getDefaultValue());
+        configuration.setValueType(request.getValueType().toUpperCase());
+        configuration.setDescription(request.getDescription());
+        configuration.setEnabled(request.isEnabled());
+
+        return configurationRepository.save(configuration);
+    }
+
+    @Transactional
+    public Configuration update(
+            String configKey,
+            ConfigurationRequest request
+    ) {
+
+        validateConfigurationValues(request);
+
+        Configuration configuration = configurationRepository
+                .findByConfigKey(configKey)
+                .orElseThrow(() ->
+                        new ConfigurationNotFoundException(configKey)
+                );
+
+        configuration.setConfigValue(request.getConfigValue());
+        configuration.setDefaultValue(request.getDefaultValue());
+        configuration.setValueType(request.getValueType().toUpperCase());
+        configuration.setDescription(request.getDescription());
+        configuration.setEnabled(request.isEnabled());
+
+        return configurationRepository.save(configuration);
+    }
+
+    @Transactional
+    public void delete(String configKey) {
+
+        Configuration configuration = configurationRepository
+                .findByConfigKey(configKey)
+                .orElseThrow(() ->
+                        new ConfigurationNotFoundException(configKey)
+                );
+
+        configurationRepository.delete(configuration);
+    }
+
+    @Transactional
+    public Configuration resetToDefault(String configKey) {
+
+        Configuration configuration = configurationRepository
+                .findByConfigKey(configKey)
+                .orElseThrow(() ->
+                        new ConfigurationNotFoundException(configKey)
+                );
+
+        configuration.setConfigValue(
+                configuration.getDefaultValue()
+        );
+
+        return configurationRepository.save(configuration);
+    }
+
+    @Transactional
+    public List<Configuration> resetAllToDefault() {
+
+        List<Configuration> configurations =
+                configurationRepository.findAll();
+
+        configurations.forEach(configuration ->
+                configuration.setConfigValue(
+                        configuration.getDefaultValue()
+                )
+        );
+
+        return configurationRepository.saveAll(configurations);
+    }
+
+    @Transactional
+    public Configuration setCurrentValueAsDefault(String configKey) {
+
+        Configuration configuration = configurationRepository
+                .findByConfigKey(configKey)
+                .orElseThrow(() ->
+                        new ConfigurationNotFoundException(configKey)
+                );
+
+        configuration.setDefaultValue(
+                configuration.getConfigValue()
+        );
+
+        return configurationRepository.save(configuration);
+    }
+
+    private Configuration getRequiredConfiguration(String configKey) {
+
+        return configurationRepository
+                .findByConfigKeyAndEnabledTrue(configKey)
+                .orElseThrow(() ->
+                        new ConfigurationNotFoundException(configKey)
+                );
+    }
+
+    private void validateConfigKey(String configKey) {
+
+        if (!StringUtils.hasText(configKey)) {
+            throw new IllegalArgumentException(
+                    "Configuration key must not be empty"
+            );
+        }
+    }
+
+    private void validateConfigurationValues(
+            ConfigurationRequest request
+    ) {
+
+        String valueType = request.getValueType();
+
+        if (!StringUtils.hasText(valueType)) {
+            throw new ConfigurationValidationException(
+                    "valueType",
+                    ConfigurationValidationException.Reason.INVALID_VALUE
+            );
+        }
+
+        valueType = valueType.trim().toUpperCase();
+
+        validateValue(
+                "configValue",
+                request.getConfigValue(),
+                valueType
+        );
+
+        validateValue(
+                "defaultValue",
+                request.getDefaultValue(),
+                valueType
+        );
+    }
+
+    private void validateValue(
+            String field,
+            String value,
+            String valueType
+    ) {
+
+        if (!StringUtils.hasText(value)) {
+            throw new ConfigurationValidationException(
+                    field,
+                    ConfigurationValidationException.Reason.REQUIRED
+            );
+        }
+
+        String normalizedValue = value.trim();
+
+        switch (valueType) {
+
+            case "BOOLEAN" -> {
+                if (!"true".equalsIgnoreCase(normalizedValue)
+                        && !"false".equalsIgnoreCase(normalizedValue)) {
+
+                    throw new ConfigurationValidationException(
+                            field,
+                            ConfigurationValidationException.Reason.INVALID_VALUE
+                    );
+                }
+            }
+
+            case "INTEGER" -> {
+                try {
+                    Integer.parseInt(normalizedValue);
+                } catch (NumberFormatException exception) {
+                    throw new ConfigurationValidationException(
+                            field,
+                            ConfigurationValidationException.Reason.INVALID_VALUE
+                    );
+                }
+            }
+
+            case "LONG" -> {
+                try {
+                    Long.parseLong(normalizedValue);
+                } catch (NumberFormatException exception) {
+                    throw new ConfigurationValidationException(
+                            field,
+                            ConfigurationValidationException.Reason.INVALID_VALUE
+                    );
+                }
+            }
+
+            case "DOUBLE" -> {
+                try {
+                    Double.parseDouble(normalizedValue);
+                } catch (NumberFormatException exception) {
+                    throw new ConfigurationValidationException(
+                            field,
+                            ConfigurationValidationException.Reason.INVALID_VALUE
+                    );
+                }
+            }
+
+            case "STRING", "TEXT" -> {
+                // Any non-empty string is valid.
+            }
+
+            default -> throw new ConfigurationValidationException(
+                    "valueType",
+                    ConfigurationValidationException.Reason.INVALID_VALUE
+            );
+        }
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/exception/ConfigurationAlreadyExistsException.java =====
+package com.starterkit.auth.configuration.exception;
+
+import lombok.Getter;
+
+@Getter
+public class ConfigurationAlreadyExistsException extends RuntimeException {
+
+    private final String configKey;
+
+    public ConfigurationAlreadyExistsException(String configKey) {
+        super("Configuration already exists: " + configKey);
+        this.configKey = configKey;
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/exception/ConfigurationValidationException.java =====
+package com.starterkit.auth.configuration.exception;
+
+import lombok.Getter;
+
+@Getter
+public class ConfigurationValidationException extends RuntimeException {
+
+    public enum Reason {
+        REQUIRED,
+        DISABLED,
+        INVALID_VALUE
+    }
+
+    private final String field;
+    private final Reason reason;
+
+    public ConfigurationValidationException(
+            String field,
+            Reason reason
+    ) {
+        super(buildMessage(field, reason));
+        this.field = field;
+        this.reason = reason;
+    }
+
+    private static String buildMessage(
+            String field,
+            Reason reason
+    ) {
+        return switch (reason) {
+            case REQUIRED ->
+                    "Field is required: " + field;
+
+            case DISABLED ->
+                    "Field is disabled: " + field;
+
+            case INVALID_VALUE ->
+                    "Invalid value for field: " + field;
+        };
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/exception/ConfigurationNotFoundException.java =====
+package com.starterkit.auth.configuration.exception;
+
+import lombok.Getter;
+
+@Getter
+public class ConfigurationNotFoundException extends RuntimeException {
+
+    private final String configKey;
+
+    public ConfigurationNotFoundException(String configKey) {
+        super("Configuration not found or disabled: " + configKey);
+        this.configKey = configKey;
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/domain/entity/Configuration.java =====
+package com.starterkit.auth.configuration.domain.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.Instant;
+
+@Entity
+@Table(name = "configurations", schema = "auth")
+@Getter
+@Setter
+@NoArgsConstructor
+public class Configuration {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "config_key", nullable = false, unique = true, length = 200)
+    private String configKey;
+
+    @Column(name = "config_value", nullable = false, columnDefinition = "TEXT")
+    private String configValue;
+
+    @Column(name = "default_value", nullable = false, columnDefinition = "TEXT")
+    private String defaultValue;
+
+    @Column(name = "value_type", nullable = false, length = 20)
+    private String valueType;
+
+    @Column(length = 500)
+    private String description;
+
+    @Column(nullable = false)
+    private boolean enabled = true;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        Instant now = Instant.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/configuration/domain/repository/ConfigurationRepository.java =====
+package com.starterkit.auth.configuration.domain.repository;
+
+import com.starterkit.auth.configuration.domain.entity.Configuration;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface ConfigurationRepository extends JpaRepository<Configuration, Long> {
+
+    Optional<Configuration> findByConfigKey(String configKey);
+
+    Optional<Configuration> findByConfigKeyAndEnabledTrue(String configKey);
+
+    List<Configuration> findAllByEnabledTrueOrderByConfigKeyAsc();
+
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/config/SecurityConfig.java =====
+package com.starterkit.auth.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http
+    ) throws Exception {
+
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> {})
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+
+                .authorizeHttpRequests(auth -> auth
+
+                        // ========================================
+                        // Swagger / OpenAPI  —  هر دو حالت با و بدون /**
+                        // ========================================
+                        .requestMatchers(
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/swagger-resources",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
+
+                        // ========================================
+                        // CORS preflight
+                        // ========================================
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // ========================================
+                        // Auth
+                        // ========================================
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/auth/register",
+                                "/auth/login"
+                        ).permitAll()
+
+                        // ========================================
+                        // Configurations
+                        // ========================================
+                        .requestMatchers(
+                                "/auth/configurations",
+                                "/auth/configurations/**"
+                        ).permitAll()
+
+                        // ========================================
+                        // بقیه نیاز به احراز هویت
+                        // ========================================
+                        .anyRequest().authenticated()
+                );
+
+        return http.build();
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/config/TraceIdFilter.java =====
+package com.starterkit.auth.config;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
+@Component
+public class TraceIdFilter extends OncePerRequestFilter {
+
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
+    private static final String TRACE_ID_MDC_KEY = "traceId";
+
+    private static final int MAX_TRACE_ID_LENGTH = 100;
+
+    private static final Pattern TRACE_ID_PATTERN =
+            Pattern.compile("^[a-zA-Z0-9._:-]+$");
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        String traceId = request.getHeader(TRACE_ID_HEADER);
+
+        if (!isValidTraceId(traceId)) {
+            traceId = UUID.randomUUID().toString();
+        }
+
+        MDC.put(TRACE_ID_MDC_KEY, traceId);
+        response.setHeader(TRACE_ID_HEADER, traceId);
+
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.remove(TRACE_ID_MDC_KEY);
+        }
+    }
+
+    private boolean isValidTraceId(String traceId) {
+        return StringUtils.hasText(traceId)
+                && traceId.length() <= MAX_TRACE_ID_LENGTH
+                && TRACE_ID_PATTERN.matcher(traceId).matches();
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/config/CorsConfig.java =====
+package com.starterkit.auth.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
+@Configuration
+public class CorsConfig {
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(
+                List.of("http://localhost:5173")
+        );
+
+        configuration.setAllowedMethods(
+                List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        );
+
+        configuration.setAllowedHeaders(
+                List.of("*")
+        );
+
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/api/response/ValidationErrorResponse.java =====
+package com.starterkit.auth.api.response;
+
+import lombok.Builder;
+import lombok.Getter;
+
+import java.util.Map;
+
+@Getter
+@Builder
+public class ValidationErrorResponse {
+
+    private final Map<String, String> fields;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/api/response/ApiCode.java =====
+package com.starterkit.auth.api.response;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public enum ApiCode {
+
+    SUCCESS(
+            "AUTH-000",
+            "Operation completed successfully"
+    ),
+
+    USER_REGISTERED(
+            "AUTH-USER-001",
+            "User registered successfully"
+    ),
+
+    USERNAME_ALREADY_EXISTS(
+            "AUTH-USER-002",
+            "Username already exists"
+    ),
+
+    EMAIL_ALREADY_EXISTS(
+            "AUTH-USER-003",
+            "Email already exists"
+    ),
+
+    MOBILE_ALREADY_EXISTS(
+            "AUTH-USER-004",
+            "Mobile number already exists"
+    ),
+
+    CONFIGURATION_NOT_FOUND(
+            "AUTH-CONFIG-001",
+            "Configuration not found"
+    ),
+    CONFIGURATION_ALREADY_EXISTS(
+            "AUTH-CONFIG-002",
+            "Configuration already exists"
+    ),
+
+    INTERNAL_ERROR(
+            "AUTH-500",
+            "An unexpected error occurred"
+    ),
+
+    VALIDATION_ERROR(
+            "AUTH-VALIDATION-001",
+            "Request validation failed"
+    ),
+    // در ApiCode.java اضافه کنید
+    LOGIN_DISABLED(
+            "AUTH-LOGIN-001",
+            "Login is disabled"
+    ),
+    INVALID_CREDENTIALS(
+            "AUTH-LOGIN-002",
+            "Invalid credentials"
+    ),
+    LOGIN_IDENTIFIER_NOT_ALLOWED(
+            "AUTH-LOGIN-003",
+            "This login identifier type is not allowed"
+    ),
+    USER_DISABLED(
+            "AUTH-LOGIN-004",
+            "User account is disabled"
+    ),
+
+    INVALID_REQUEST(
+            "AUTH-VALIDATION-002",
+            "Invalid request"
+    );
+
+    private final String code;
+    private final String defaultMessage;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/api/response/ApiResponse.java =====
+package com.starterkit.auth.api.response;
+
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.Instant;
+
+@Getter
+@Builder
+public class ApiResponse<T> {
+
+    private final boolean success;
+    private final String code;
+    private final String message;
+    private final T data;
+    private final Instant timestamp;
+    private final String traceId;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/api/response/ApiResponseFactory.java =====
+package com.starterkit.auth.api.response;
+
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+import java.time.Instant;
+
+
+@Component
+public class ApiResponseFactory {
+
+    private static final String TRACE_ID_MDC_KEY = "traceId";
+
+    public <T> ApiResponse<T> success(ApiCode apiCode, T data) {
+        return ApiResponse.<T>builder()
+                .success(true)
+                .code(apiCode.getCode())
+                .message(apiCode.getDefaultMessage())
+                .data(data)
+                .timestamp(Instant.now())
+                .traceId(getTraceId())
+                .build();
+    }
+
+    public <T> ApiResponse<T> error(ApiCode apiCode) {
+        return error(apiCode, null);
+    }
+
+    public <T> ApiResponse<T> error(ApiCode apiCode, T data) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .code(apiCode.getCode())
+                .message(apiCode.getDefaultMessage())
+                .data(data)
+                .timestamp(Instant.now())
+                .traceId(getTraceId())
+                .build();
+    }
+
+    private String getTraceId() {
+        return MDC.get(TRACE_ID_MDC_KEY);
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/api/AuthController.java =====
+package com.starterkit.auth.api;
+
+import com.starterkit.auth.api.response.ApiCode;
+import com.starterkit.auth.api.response.ApiResponse;
+import com.starterkit.auth.api.response.ApiResponseFactory;
+import com.starterkit.auth.application.dto.LoginRequest;
+import com.starterkit.auth.application.dto.LoginResponse;
+import com.starterkit.auth.application.dto.RegisterRequest;
+import com.starterkit.auth.application.dto.UserResponse;
+import com.starterkit.auth.application.service.AuthService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthService authService;
+    private final ApiResponseFactory responseFactory;
+
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<UserResponse> register(
+            @Valid @RequestBody RegisterRequest request
+    ) {
+        UserResponse userResponse = authService.register(request);
+
+        return responseFactory.success(
+                ApiCode.USER_REGISTERED,
+                userResponse
+        );
+    }
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request
+    ) {
+        LoginResponse response = authService.login(request);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                response
+        );
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/api/GlobalExceptionHandler.java =====
+package com.starterkit.auth.api;
+
+import com.starterkit.auth.application.exception.LoginException;
+import com.starterkit.auth.api.response.ApiCode;
+import com.starterkit.auth.api.response.ApiResponse;
+import com.starterkit.auth.api.response.ApiResponseFactory;
+import com.starterkit.auth.api.response.ValidationErrorResponse;
+import com.starterkit.auth.application.exception.UserAlreadyExistsException;
+import com.starterkit.auth.configuration.exception.ConfigurationNotFoundException;
+import com.starterkit.auth.configuration.exception.ConfigurationValidationException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.starterkit.auth.configuration.exception.ConfigurationAlreadyExistsException;
+
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestControllerAdvice
+@RequiredArgsConstructor
+public class GlobalExceptionHandler {
+
+    private final ApiResponseFactory responseFactory;
+
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleUserAlreadyExists(
+            UserAlreadyExistsException exception
+    ) {
+
+        ApiCode apiCode = switch (exception.getField()) {
+            case "username" -> ApiCode.USERNAME_ALREADY_EXISTS;
+            case "email" -> ApiCode.EMAIL_ALREADY_EXISTS;
+            case "mobileNumber" -> ApiCode.MOBILE_ALREADY_EXISTS;
+            default -> ApiCode.INTERNAL_ERROR;
+        };
+
+        return responseFactory.error(apiCode);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<ValidationErrorResponse> handleValidationException(
+            MethodArgumentNotValidException exception
+    ) {
+
+        Map<String, String> fields = exception.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .collect(Collectors.toMap(
+                        error -> error.getField(),
+                        error -> error.getDefaultMessage(),
+                        (existing, replacement) -> existing
+                ));
+
+        ValidationErrorResponse data = ValidationErrorResponse.builder()
+                .fields(fields)
+                .build();
+
+        return responseFactory.error(
+                ApiCode.VALIDATION_ERROR,
+                data
+        );
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleInvalidRequest(
+            HttpMessageNotReadableException exception
+    ) {
+        return responseFactory.error(ApiCode.INVALID_REQUEST);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception
+    ) {
+
+        ApiCode apiCode = resolveDataIntegrityError(exception);
+
+        if (apiCode == ApiCode.INTERNAL_ERROR) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(responseFactory.error(ApiCode.INTERNAL_ERROR));
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(responseFactory.error(apiCode));
+    }
+
+    private ApiCode resolveDataIntegrityError(
+            DataIntegrityViolationException exception
+    ) {
+
+        String message = exception.getMostSpecificCause().getMessage();
+
+        if (message == null) {
+            return ApiCode.INTERNAL_ERROR;
+        }
+
+        if (message.contains("users_username_key")) {
+            return ApiCode.USERNAME_ALREADY_EXISTS;
+        }
+
+        if (message.contains("users_email_key")) {
+            return ApiCode.EMAIL_ALREADY_EXISTS;
+        }
+
+        if (message.contains("users_mobile_number_key")) {
+            return ApiCode.MOBILE_ALREADY_EXISTS;
+        }
+
+        return ApiCode.INTERNAL_ERROR;
+    }
+
+    @ExceptionHandler(ConfigurationValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<ValidationErrorResponse> handleConfigurationValidation(
+            ConfigurationValidationException exception
+    ) {
+
+        ValidationErrorResponse data = ValidationErrorResponse.builder()
+                .fields(Map.of(
+                        exception.getField(),
+                        exception.getMessage()
+                ))
+                .build();
+
+        return responseFactory.error(
+                ApiCode.VALIDATION_ERROR,
+                data
+        );
+    }
+
+
+    @ExceptionHandler(ConfigurationAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleConfigurationAlreadyExists(
+            ConfigurationAlreadyExistsException exception
+    ) {
+        return responseFactory.error(
+                ApiCode.CONFIGURATION_ALREADY_EXISTS
+        );
+    }
+    @ExceptionHandler(ConfigurationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleConfigurationNotFound(
+            ConfigurationNotFoundException exception
+    ) {
+        return responseFactory.error(
+                ApiCode.CONFIGURATION_NOT_FOUND
+        );
+    }
+    @ExceptionHandler(LoginException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLoginException(
+            LoginException exception
+    ) {
+        HttpStatus status = switch (exception.getApiCode()) {
+            case LOGIN_DISABLED,
+                 LOGIN_IDENTIFIER_NOT_ALLOWED -> HttpStatus.FORBIDDEN;
+            case USER_DISABLED,
+                 INVALID_CREDENTIALS -> HttpStatus.UNAUTHORIZED;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+
+        return ResponseEntity
+                .status(status)
+                .body(responseFactory.error(exception.getApiCode()));
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/application/service/AuthService.java =====
+package com.starterkit.auth.application.service;
+
+import com.starterkit.auth.api.response.ApiCode;
+import com.starterkit.auth.application.LoginConfigurationValidator;
+import com.starterkit.auth.application.LoginConfigurationValidator.IdentifierType;
+import com.starterkit.auth.application.dto.LoginRequest;
+import com.starterkit.auth.application.dto.LoginResponse;
+import com.starterkit.auth.application.dto.RegisterRequest;
+import com.starterkit.auth.application.dto.UserResponse;
+import com.starterkit.auth.application.exception.LoginException;
+import com.starterkit.auth.application.exception.UserAlreadyExistsException;
+import com.starterkit.auth.configuration.application.RegisterConfigurationValidator;
+import com.starterkit.auth.domain.entity.User;
+import com.starterkit.auth.domain.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final RegisterConfigurationValidator registerConfigurationValidator;
+    private final LoginConfigurationValidator loginConfigurationValidator;
+
+    @Transactional
+    public UserResponse register(RegisterRequest request) {
+
+        registerConfigurationValidator.validate(request);
+
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new UserAlreadyExistsException("username");
+        }
+
+        if (StringUtils.hasText(request.getEmail())
+                && userRepository.existsByEmail(request.getEmail())) {
+            throw new UserAlreadyExistsException("email");
+        }
+
+        if (StringUtils.hasText(request.getMobileNumber())
+                && userRepository.existsByMobileNumber(request.getMobileNumber())) {
+            throw new UserAlreadyExistsException("mobileNumber");
+        }
+
+        User user = new User();
+
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setMobileNumber(request.getMobileNumber());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+
+        User savedUser = userRepository.save(user);
+
+        return UserResponse.builder()
+                .id(savedUser.getId())
+                .username(savedUser.getUsername())
+                .email(savedUser.getEmail())
+                .mobileNumber(savedUser.getMobileNumber())
+                .firstName(savedUser.getFirstName())
+                .lastName(savedUser.getLastName())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request) {
+
+        loginConfigurationValidator.validate(request);
+
+        IdentifierType type = loginConfigurationValidator
+                .detectIdentifierType(request.getIdentifier());
+
+        User user = switch (type) {
+            case EMAIL -> userRepository.findByEmail(request.getIdentifier())
+                    .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
+            case MOBILE -> userRepository.findByMobileNumber(request.getIdentifier())
+                    .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
+            case USERNAME -> userRepository.findByUsername(request.getIdentifier())
+                    .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
+        };
+
+        if (!user.isEnabled()) {
+            throw new LoginException(ApiCode.USER_DISABLED);
+        }
+
+        if (!passwordEncoder.matches(
+                request.getPassword(),
+                user.getPassword())) {
+            throw new LoginException(ApiCode.INVALID_CREDENTIALS);
+        }
+
+        return LoginResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .mobileNumber(user.getMobileNumber())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .build();
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/application/dto/UserResponse.java =====
+package com.starterkit.auth.application.dto;
+
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder
+public class UserResponse {
+
+    private Long id;
+    private String username;
+    private String email;
+    private String mobileNumber;
+    private String firstName;
+    private String lastName;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/application/dto/RegisterRequest.java =====
+package com.starterkit.auth.application.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class RegisterRequest {
+
+    @Size(max = 100)
+    private String username;
+
+    @Email
+    @Size(max = 255)
+    private String email;
+
+    @Size(max = 20)
+    private String mobileNumber;
+
+    @Size(min = 8, max = 255)
+    private String password;
+
+    @Size(max = 100)
+    private String firstName;
+
+    @Size(max = 100)
+    private String lastName;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/application/dto/LoginRequest.java =====
+
+        package com.starterkit.auth.application.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class LoginRequest {
+
+    @NotBlank
+    private String identifier;
+
+    @NotBlank
+    private String password;
+}
+
+
+===== ./auth-service/src/main/java/com/starterkit/auth/application/dto/LoginResponse.java =====
+
+        package com.starterkit.auth.application.dto;
+
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder
+public class LoginResponse {
+
+    private final Long userId;
+    private final String username;
+    private final String email;
+    private final String mobileNumber;
+    private final String firstName;
+    private final String lastName;
+}
+
+
+===== ./auth-service/src/main/java/com/starterkit/auth/application/LoginConfigurationValidator.java =====
+package com.starterkit.auth.application;
+
+import com.starterkit.auth.api.response.ApiCode;
+import com.starterkit.auth.application.dto.LoginRequest;
+import com.starterkit.auth.application.exception.LoginException;
+import com.starterkit.auth.configuration.application.ConfigurationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+@Component
+@RequiredArgsConstructor
+public class LoginConfigurationValidator {
+
+    private final ConfigurationService configurationService;
+
+    public void validate(LoginRequest request) {
+
+        if (!configurationService.getBoolean("AUTH.LOGIN.ENABLED")) {
+            throw new LoginException(ApiCode.LOGIN_DISABLED);
+        }
+
+        if (request == null
+                || !StringUtils.hasText(request.getIdentifier())
+                || !StringUtils.hasText(request.getPassword())) {
+            throw new LoginException(ApiCode.INVALID_CREDENTIALS);
+        }
+
+        IdentifierType type = detectIdentifierType(request.getIdentifier());
+
+        boolean allowed = switch (type) {
+            case EMAIL -> configurationService.getBoolean(
+                    "AUTH.LOGIN.EMAIL.ENABLED");
+            case MOBILE -> configurationService.getBoolean(
+                    "AUTH.LOGIN.MOBILE_NUMBER.ENABLED");
+            case USERNAME -> configurationService.getBoolean(
+                    "AUTH.LOGIN.USERNAME.ENABLED");
+        };
+
+        if (!allowed) {
+            throw new LoginException(ApiCode.LOGIN_IDENTIFIER_NOT_ALLOWED);
+        }
+    }
+
+    public IdentifierType detectIdentifierType(String identifier) {
+        if (identifier.contains("@")) {
+            return IdentifierType.EMAIL;
+        }
+        if (identifier.matches("\\d+")) {
+            return IdentifierType.MOBILE;
+        }
+        return IdentifierType.USERNAME;
+    }
+
+    public enum IdentifierType {
+        EMAIL, MOBILE, USERNAME
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/application/exception/LoginException.java =====
+package com.starterkit.auth.application.exception;
+
+import com.starterkit.auth.api.response.ApiCode;
+import lombok.Getter;
+
+@Getter
+public class LoginException extends RuntimeException {
+
+    private final ApiCode apiCode;
+
+    public LoginException(ApiCode apiCode) {
+        super(apiCode.getDefaultMessage());
+        this.apiCode = apiCode;
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/application/exception/UserAlreadyExistsException.java =====
+package com.starterkit.auth.application.exception;
+
+import lombok.Getter;
+
+@Getter
+public class UserAlreadyExistsException extends RuntimeException {
+
+    private final String field;
+
+    public UserAlreadyExistsException(String field) {
+        this.field = field;
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/AuthServiceApplication.java =====
+package com.starterkit.auth;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AuthServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(AuthServiceApplication.class, args);
+    }
+}
+
+===== ./auth-service/src/main/java/com/starterkit/auth/domain/entity/User.java =====
+package com.starterkit.auth.domain.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+public class User extends BaseEntity {
+
+    @Column(nullable = false, unique = true, length = 100)
+    private String username;
+
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
+
+    @Column(name = "mobile_number", unique = true, length = 20)
+    private String mobileNumber;
+
+    @Column(nullable = false, length = 255)
+    private String password;
+
+    @Column(name = "first_name", length = 100)
+    private String firstName;
+
+    @Column(name = "last_name", length = 100)
+    private String lastName;
+
+    @Column(nullable = false)
+    private boolean enabled = true;
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/domain/entity/BaseEntity.java =====
+package com.starterkit.auth.domain.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import lombok.Getter;
+
+import java.time.Instant;
+
+@Getter
+@MappedSuperclass
+public abstract class BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        Instant now = Instant.now();
+        createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
+    }
+}
+===== ./auth-service/src/main/java/com/starterkit/auth/domain/repository/UserRepository.java =====
+package com.starterkit.auth.domain.repository;
+
+import com.starterkit.auth.domain.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    boolean existsByUsername(String username);
+
+    boolean existsByEmail(String email);
+
+    boolean existsByMobileNumber(String mobileNumber);
+
+    Optional<User> findByUsername(String username);
+
+    Optional<User> findByEmail(String email);
+
+    Optional<User> findByMobileNumber(String mobileNumber);
+}
+================ POM FILES ================
+
+===== ./audit-service/pom.xml =====
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://maven.apache.org/POM/4.0.0
+            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.starterkit</groupId>
+        <artifactId>starterkit</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>audit-service</artifactId>
+
+    <name>audit-service</name>
+    <description>StarterKit Audit Service</description>
+
+    <dependencies>
+
+        <!-- REST API -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+
+===== ./auth-service/pom.xml =====
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://maven.apache.org/POM/4.0.0
+            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.starterkit</groupId>
+        <artifactId>starterkit</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>auth-service</artifactId>
+
+    <name>auth-service</name>
+    <description>StarterKit Authentication Service</description>
+
+    <dependencies>
+
+        <!-- REST API -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- OpenAPI / Swagger UI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.8.9</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+
+===== ./pom.xml =====
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+            http://maven.apache.org/POM/4.0.0
+            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.6</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.starterkit</groupId>
+    <artifactId>starterkit</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <packaging>pom</packaging>
+
+    <name>starterkit</name>
+    <description>StarterKit Microservices Platform</description>
+
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+
+    <modules>
+        <module>auth-service</module>
+        <module>audit-service</module>
+    </modules>
+
+</project>
+
+================ CONFIG FILES ================
+
+===== ./auth-service/src/main/resources/application.properties =====
+# ==================================================
+# Application
+# ==================================================
+spring.application.name=auth-service
+server.port=8081
+
+
+# ==================================================
+# Database - PostgreSQL
+# ==================================================
+spring.datasource.url=jdbc:postgresql://localhost:5432/starterkit
+spring.datasource.username=sa
+spring.datasource.password=sa
+
+
+# ==================================================
+# JPA / Hibernate
+# ==================================================
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.properties.hibernate.default_schema=auth
+
+
+# ==================================================
+# Flyway
+# ==================================================
+spring.flyway.enabled=true
+spring.flyway.default-schema=auth
+spring.flyway.schemas=auth
+
+
+# ==================================================
+# OpenAPI / Swagger
+# ==================================================
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.swagger-ui.operationsSorter=method
+springdoc.swagger-ui.tagsSorter=alpha
+springdoc.swagger-ui.display-request-duration=true
+springdoc.show-actuator=false
+
+
+# ==================================================
+# Log
+# ==================================================
+#logging.level.org.springframework.security=DEBUG
+#logging.level.org.springframework.web=DEBUG
+================ FLYWAY MIGRATIONS ================
+
+===== ./auth-service/src/main/resources/db/migration/V6__remove_fixed_register_configurations.sql =====
+DELETE FROM auth.configurations
+WHERE config_key IN (
+                     'AUTH.REGISTER.USERNAME.ENABLED',
+                     'AUTH.REGISTER.USERNAME.REQUIRED',
+                     'AUTH.REGISTER.PASSWORD.ENABLED',
+                     'AUTH.REGISTER.PASSWORD.REQUIRED'
+    );
+===== ./auth-service/src/main/resources/db/migration/V7__add_default_value_to_configurations.sql =====
+ALTER TABLE auth.configurations
+    ADD COLUMN default_value TEXT;
+
+UPDATE auth.configurations
+SET default_value = config_value
+WHERE default_value IS NULL;
+
+ALTER TABLE auth.configurations
+    ALTER COLUMN default_value SET NOT NULL;
+===== ./auth-service/src/main/resources/db/migration/V2__change_users_id_to_bigint.sql =====
+CREATE SEQUENCE auth.users_id_seq
+    START WITH 1
+    INCREMENT BY 1;
+
+ALTER TABLE auth.users
+    ADD COLUMN id_new BIGINT;
+
+UPDATE auth.users
+SET id_new = nextval('auth.users_id_seq');
+
+ALTER SEQUENCE auth.users_id_seq
+    OWNED BY auth.users.id_new;
+
+ALTER TABLE auth.users
+    ALTER COLUMN id_new SET NOT NULL;
+
+ALTER TABLE auth.users
+DROP CONSTRAINT users_pkey;
+
+ALTER TABLE auth.users
+DROP COLUMN id;
+
+ALTER TABLE auth.users
+    RENAME COLUMN id_new TO id;
+
+ALTER SEQUENCE auth.users_id_seq
+    OWNED BY auth.users.id;
+
+ALTER TABLE auth.users
+    ALTER COLUMN id SET DEFAULT nextval('auth.users_id_seq');
+
+ALTER TABLE auth.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+===== ./auth-service/src/main/resources/db/migration/V1__create_users_table.sql =====
+CREATE TABLE auth.users (
+                            id UUID PRIMARY KEY,
+                            username VARCHAR(100) NOT NULL UNIQUE,
+                            email VARCHAR(255) NOT NULL UNIQUE,
+                            mobile_number VARCHAR(20) UNIQUE,
+                            password VARCHAR(255) NOT NULL,
+                            first_name VARCHAR(100),
+                            last_name VARCHAR(100),
+                            enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                            created_at TIMESTAMP NOT NULL,
+                            updated_at TIMESTAMP NOT NULL
+);
+===== ./auth-service/src/main/resources/db/migration/V4__create_register_field_configs.sql =====
+CREATE TABLE auth.configurations (
+                                     id BIGSERIAL PRIMARY KEY,
+
+                                     config_key VARCHAR(200) NOT NULL UNIQUE,
+
+                                     config_value TEXT NOT NULL,
+
+                                     value_type VARCHAR(20) NOT NULL,
+
+                                     description VARCHAR(500),
+
+                                     enabled BOOLEAN NOT NULL DEFAULT TRUE,
+
+                                     created_at TIMESTAMPTZ NOT NULL,
+
+                                     updated_at TIMESTAMPTZ NOT NULL
+);
+
+INSERT INTO auth.configurations
+(config_key, config_value, value_type, description, enabled, created_at, updated_at)
+VALUES
+    ('AUTH.REGISTER.USERNAME.ENABLED', 'true', 'BOOLEAN',
+     'Enable username field in registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.USERNAME.REQUIRED', 'true', 'BOOLEAN',
+     'Username is required during registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.EMAIL.ENABLED', 'true', 'BOOLEAN',
+     'Enable email field in registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.EMAIL.REQUIRED', 'true', 'BOOLEAN',
+     'Email is required during registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.MOBILE_NUMBER.ENABLED', 'true', 'BOOLEAN',
+     'Enable mobile number field in registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.MOBILE_NUMBER.REQUIRED', 'false', 'BOOLEAN',
+     'Mobile number is required during registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.PASSWORD.ENABLED', 'true', 'BOOLEAN',
+     'Enable password field in registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.PASSWORD.REQUIRED', 'true', 'BOOLEAN',
+     'Password is required during registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.FIRST_NAME.ENABLED', 'true', 'BOOLEAN',
+     'Enable first name field in registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.FIRST_NAME.REQUIRED', 'false', 'BOOLEAN',
+     'First name is required during registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.LAST_NAME.ENABLED', 'true', 'BOOLEAN',
+     'Enable last name field in registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+    ('AUTH.REGISTER.LAST_NAME.REQUIRED', 'false', 'BOOLEAN',
+     'Last name is required during registration', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+===== ./auth-service/src/main/resources/db/migration/V3__use_timestamp_with_timezone.sql =====
+ALTER TABLE auth.users
+ALTER COLUMN created_at TYPE TIMESTAMPTZ
+        USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE auth.users
+ALTER COLUMN updated_at TYPE TIMESTAMPTZ
+        USING updated_at AT TIME ZONE 'UTC';
+===== ./auth-service/src/main/resources/db/migration/V8__seed_login_configurations.sql =====
+INSERT INTO auth.configurations (
+    config_key,
+    config_value,
+    default_value,
+    value_type,
+    description,
+    enabled,
+    created_at,
+    updated_at
+)
+VALUES
+    (
+        'AUTH.LOGIN.ENABLED',
+        'true',
+        'true',
+        'BOOLEAN',
+        'Login feature is enabled',
+        true,
+        NOW(),
+        NOW()
+    ),
+    (
+        'AUTH.LOGIN.USERNAME.ENABLED',
+        'true',
+        'true',
+        'BOOLEAN',
+        'Username can be used for login',
+        true,
+        NOW(),
+        NOW()
+    ),
+    (
+        'AUTH.LOGIN.EMAIL.ENABLED',
+        'true',
+        'true',
+        'BOOLEAN',
+        'Email can be used for login',
+        true,
+        NOW(),
+        NOW()
+    ),
+    (
+        'AUTH.LOGIN.MOBILE_NUMBER.ENABLED',
+        'true',
+        'true',
+        'BOOLEAN',
+        'Mobile number can be used for login',
+        true,
+        NOW(),
+        NOW()
+    );
+===== ./auth-service/src/main/resources/db/migration/V5__make_email_nullable.sql =====
+ALTER TABLE auth.users
+    ALTER COLUMN email DROP NOT NULL;
