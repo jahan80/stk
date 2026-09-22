@@ -1,8 +1,8 @@
 package com.starterkit.auth.configuration.api;
 
-import com.starterkit.auth.api.response.ApiCode;
-import com.starterkit.auth.api.response.ApiResponse;
-import com.starterkit.auth.api.response.ApiResponseFactory;
+import com.starterkit.auth.shared.api.response.ApiCode;
+import com.starterkit.auth.shared.api.response.ApiResponse;
+import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import com.starterkit.auth.configuration.api.dto.ConfigurationRequest;
 import com.starterkit.auth.configuration.api.dto.ConfigurationResponse;
 import com.starterkit.auth.configuration.application.ConfigurationService;
