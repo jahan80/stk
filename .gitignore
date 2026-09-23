@@ -20,3 +20,8 @@ logs/
 # Env
 .env
 *.local
+
+
+
+# TODO (production): move JWT keys out of git
+# auth-service/src/main/resources/keys/*.pem
