@@ -1,6 +1,6 @@
 package com.starterkit.auth.auth.application.validator;
 
-import com.starterkit.auth.auth.application.dto.RegisterRequest;
+import com.starterkit.auth.auth.api.dto.RegisterRequest;
 import com.starterkit.auth.configuration.exception.ConfigurationValidationException;
 import com.starterkit.auth.configuration.application.ConfigurationService;
 import lombok.RequiredArgsConstructor;

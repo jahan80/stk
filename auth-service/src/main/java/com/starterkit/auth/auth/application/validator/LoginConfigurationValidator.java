@@ -1,7 +1,7 @@
 package com.starterkit.auth.auth.application.validator;
 
 import com.starterkit.auth.shared.api.response.ApiCode;
-import com.starterkit.auth.auth.application.dto.LoginRequest;
+import com.starterkit.auth.auth.api.dto.LoginRequest;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.configuration.application.ConfigurationService;
 import lombok.RequiredArgsConstructor;

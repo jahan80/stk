@@ -3,10 +3,10 @@ package com.starterkit.auth.auth.api;
 import com.starterkit.auth.shared.api.response.ApiCode;
 import com.starterkit.auth.shared.api.response.ApiResponse;
 import com.starterkit.auth.shared.api.response.ApiResponseFactory;
-import com.starterkit.auth.auth.application.dto.LoginRequest;
-import com.starterkit.auth.auth.application.dto.LoginResponse;
-import com.starterkit.auth.auth.application.dto.RegisterRequest;
-import com.starterkit.auth.auth.application.dto.UserResponse;
+import com.starterkit.auth.auth.api.dto.LoginRequest;
+import com.starterkit.auth.auth.api.dto.LoginResponse;
+import com.starterkit.auth.auth.api.dto.RegisterRequest;
+import com.starterkit.auth.auth.api.dto.RegisterResponse;
 import com.starterkit.auth.auth.application.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +27,10 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<UserResponse> register(
+    public ApiResponse<RegisterResponse> register(
             @Valid @RequestBody RegisterRequest request
     ) {
-        UserResponse userResponse = authService.register(request);
+        RegisterResponse userResponse = authService.register(request);
 
         return responseFactory.success(
                 ApiCode.USER_REGISTERED,

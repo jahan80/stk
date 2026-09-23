@@ -1,4 +1,4 @@
-package com.starterkit.auth.auth.application.dto;
+package com.starterkit.auth.auth.api.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;

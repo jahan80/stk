@@ -1,17 +1,19 @@
 package com.starterkit.auth.auth.application.service;
 
-import com.starterkit.auth.shared.api.response.ApiCode;
-import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
-import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator.IdentifierType;
-import com.starterkit.auth.auth.application.dto.LoginRequest;
-import com.starterkit.auth.auth.application.dto.LoginResponse;
-import com.starterkit.auth.auth.application.dto.RegisterRequest;
-import com.starterkit.auth.auth.application.dto.UserResponse;
+import com.starterkit.auth.auth.api.dto.LoginRequest;
+import com.starterkit.auth.auth.api.dto.LoginResponse;
+import com.starterkit.auth.auth.api.dto.RegisterRequest;
+import com.starterkit.auth.auth.api.dto.RegisterResponse;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.exception.UserAlreadyExistsException;
+import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
+import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator.IdentifierType;
 import com.starterkit.auth.auth.application.validator.RegisterConfigurationValidator;
+import com.starterkit.auth.auth.domain.entity.Role;
 import com.starterkit.auth.auth.domain.entity.User;
+import com.starterkit.auth.auth.domain.repository.RoleRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
+import com.starterkit.auth.shared.api.response.ApiCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,13 +24,16 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final String DEFAULT_ROLE = "USER";
+
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final RegisterConfigurationValidator registerConfigurationValidator;
     private final LoginConfigurationValidator loginConfigurationValidator;
 
     @Transactional
-    public UserResponse register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request) {
 
         registerConfigurationValidator.validate(request);
 
@@ -46,6 +51,11 @@ public class AuthService {
             throw new UserAlreadyExistsException("mobileNumber");
         }
 
+        Role defaultRole = roleRepository.findByName(DEFAULT_ROLE)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Default role '" + DEFAULT_ROLE + "' not found in database"
+                ));
+
         User user = new User();
 
         user.setUsername(request.getUsername());
@@ -54,10 +64,11 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setRole(defaultRole);
 
         User savedUser = userRepository.save(user);
 
-        return UserResponse.builder()
+        return RegisterResponse.builder()
                 .id(savedUser.getId())
                 .username(savedUser.getUsername())
                 .email(savedUser.getEmail())

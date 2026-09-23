@@ -1,5 +1,5 @@
 
-package com.starterkit.auth.auth.application.dto;
+package com.starterkit.auth.auth.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;

@@ -1,5 +1,5 @@
 
-package com.starterkit.auth.auth.application.dto;
+package com.starterkit.auth.auth.api.dto;
 
 import lombok.Builder;
 import lombok.Getter;
