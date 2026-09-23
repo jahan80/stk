@@ -58,7 +58,6 @@ public class AuthService {
                 ));
 
         User user = new User();
-
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setMobileNumber(request.getMobileNumber());
@@ -76,6 +75,7 @@ public class AuthService {
                 .mobileNumber(savedUser.getMobileNumber())
                 .firstName(savedUser.getFirstName())
                 .lastName(savedUser.getLastName())
+                .role(savedUser.getRole().getName())
                 .build();
     }
 
@@ -100,9 +100,7 @@ public class AuthService {
             throw new LoginException(ApiCode.USER_DISABLED);
         }
 
-        if (!passwordEncoder.matches(
-                request.getPassword(),
-                user.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new LoginException(ApiCode.INVALID_CREDENTIALS);
         }
 
@@ -113,12 +111,10 @@ public class AuthService {
                 .refreshToken(tokens.refreshToken())
                 .tokenType("Bearer")
                 .expiresIn(tokens.expiresInSeconds())
-                .user(LoginResponse.UserInfo.builder()
-                        .id(user.getId())
-                        .username(user.getUsername())
-                        .email(user.getEmail())
-                        .role(user.getRole().getName())
-                        .build())
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().getName())
                 .build();
     }
 }

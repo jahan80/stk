@@ -3,8 +3,6 @@ package com.starterkit.auth.auth.api.dto;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.Instant;
-
 @Getter
 @Builder
 public class RegisterResponse {
@@ -14,4 +12,5 @@ public class RegisterResponse {
     private String mobileNumber;
     private String firstName;
     private String lastName;
+    private String role;
 }

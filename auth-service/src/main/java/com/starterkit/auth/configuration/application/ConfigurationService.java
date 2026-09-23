@@ -24,9 +24,6 @@ public class ConfigurationService {
         return getRequiredConfiguration(configKey).getConfigValue();
     }
 
-    public String getString(String configKey) {
-        return getRequiredConfiguration(configKey).getConfigValue();
-    }
 
     public boolean getBoolean(String configKey) {
         return Boolean.parseBoolean(
