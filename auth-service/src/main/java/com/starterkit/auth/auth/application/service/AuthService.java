@@ -31,6 +31,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RegisterConfigurationValidator registerConfigurationValidator;
     private final LoginConfigurationValidator loginConfigurationValidator;
+    private final TokenService tokenService;
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -78,7 +79,7 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
 
         loginConfigurationValidator.validate(request);
@@ -105,13 +106,19 @@ public class AuthService {
             throw new LoginException(ApiCode.INVALID_CREDENTIALS);
         }
 
+        TokenService.TokenPair tokens = tokenService.generateTokens(user);
+
         return LoginResponse.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .mobileNumber(user.getMobileNumber())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
+                .accessToken(tokens.accessToken())
+                .refreshToken(tokens.refreshToken())
+                .tokenType("Bearer")
+                .expiresIn(tokens.expiresInSeconds())
+                .user(LoginResponse.UserInfo.builder()
+                        .id(user.getId())
+                        .username(user.getUsername())
+                        .email(user.getEmail())
+                        .role(user.getRole().getName())
+                        .build())
                 .build();
     }
 }
