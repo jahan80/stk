@@ -284,4 +284,19 @@ public class GlobalExceptionHandler {
         return responseFactory.error(ApiCode.FORBIDDEN);
     }
 
+
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleIllegalState(IllegalStateException exception) {
+        log.warn("Illegal state: {}", exception.getMessage());
+        return responseFactory.error(ApiCode.INVALID_REQUEST);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException exception) {
+        log.warn("Illegal argument: {}", exception.getMessage());
+        return responseFactory.error(ApiCode.INVALID_REQUEST);
+    }
+
 }
