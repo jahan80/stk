@@ -1,0 +1,10 @@
+**/target/
+**/node_modules/
+.git/
+.idea/
+*.iml
+*.log
+all_project_files.txt
+**/all_project_files.txt
+temp.txt
+*.docx

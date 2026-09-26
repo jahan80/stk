@@ -1,6 +1,28 @@
-version: '3.8'
-
 services:
+
+  # ==================================================
+  # PostgreSQL
+  # ==================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: starterkit-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: starterkit
+      POSTGRES_USER: sa
+      POSTGRES_PASSWORD: sa
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sa -d starterkit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ==================================================
+  # RabbitMQ
+  # ==================================================
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: starterkit-rabbitmq
@@ -18,5 +40,80 @@ services:
       timeout: 5s
       retries: 5
 
+  # ==================================================
+  # auth-service
+  # ==================================================
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: starterkit-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: sa
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+      APP_DEFAULT_ADMIN_ENABLED: "true"
+      APP_DEFAULT_ADMIN_USERNAME: admin
+      APP_DEFAULT_ADMIN_PASSWORD: admin123
+      APP_DEFAULT_ADMIN_EMAIL: admin@starterkit.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ==================================================
+  # audit-service
+  # ==================================================
+  audit-service:
+    build:
+      context: .
+      dockerfile: audit-service/Dockerfile
+    container_name: starterkit-audit-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: sa
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ==================================================
+  # api-gateway
+  # ==================================================
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: starterkit-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+      # Route URIs (used by application.properties via env vars)
+      AUTH_SERVICE_URL: http://auth-service:8081
+      AUDIT_SERVICE_URL: http://audit-service:8082
+    depends_on:
+      - auth-service
+      - audit-service
+
 volumes:
+  postgres-data:
   rabbitmq-data:
