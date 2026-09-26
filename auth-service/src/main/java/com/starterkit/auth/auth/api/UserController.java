@@ -1,6 +1,7 @@
 package com.starterkit.auth.auth.api;
 
 import com.starterkit.auth.auth.api.dto.AssignRoleRequest;
+import com.starterkit.auth.auth.api.dto.CreateUserRequest;
 import com.starterkit.auth.auth.api.dto.UserDetailResponse;
 import com.starterkit.auth.auth.api.dto.UserSummaryResponse;
 import com.starterkit.auth.auth.application.service.UserManagementService;
@@ -9,6 +10,7 @@ import com.starterkit.auth.shared.api.response.ApiResponse;
 import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -64,4 +66,16 @@ public class UserController {
                 ApiCode.SUCCESS,
                 userManagementService.setEnabled(id, false));
     }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('user:write')")
+    public ApiResponse<UserDetailResponse> create(
+            @Valid @RequestBody CreateUserRequest request
+    ) {
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                userManagementService.createUser(request));
+    }
+
 }
