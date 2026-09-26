@@ -4,6 +4,7 @@ import com.starterkit.auth.auth.api.dto.LoginRequest;
 import com.starterkit.auth.auth.api.dto.LoginResponse;
 import com.starterkit.auth.auth.api.dto.RegisterRequest;
 import com.starterkit.auth.auth.api.dto.RegisterResponse;
+import com.starterkit.auth.auth.api.dto.UserResponse;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.exception.UserAlreadyExistsException;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
@@ -115,6 +116,24 @@ public class AuthService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole().getName())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse me(Long userId) {
+
+        User user = userRepository.findByIdWithRole(userId)
+                .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
+
+        return UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .mobileNumber(user.getMobileNumber())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .role(user.getRole().getName())
+                .enabled(user.isEnabled())
                 .build();
     }
 }
