@@ -1,7 +1,9 @@
 package com.starterkit.auth.auth.domain.repository;
 
 import com.starterkit.auth.auth.domain.entity.RefreshToken;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,8 +16,13 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     /**
-     * Revoke all active tokens for a user (e.g. on password change or logout all devices)
+     * P0-4: Pessimistic lock for concurrent refresh protection.
+     * Prevents race condition when two requests use the same refresh token.
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT rt FROM RefreshToken rt WHERE rt.tokenHash = :tokenHash")
+    Optional<RefreshToken> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
+
     @Modifying
     @Query("""
             UPDATE RefreshToken rt
@@ -24,9 +31,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             """)
     int revokeAllByUserId(@Param("userId") Long userId, @Param("now") Instant now);
 
-    /**
-     * Delete expired tokens (scheduled cleanup)
-     */
     @Modifying
     @Query("DELETE FROM RefreshToken rt WHERE rt.expiresAt < :now")
     int deleteExpired(@Param("now") Instant now);

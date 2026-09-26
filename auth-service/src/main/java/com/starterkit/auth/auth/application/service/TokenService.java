@@ -63,8 +63,9 @@ public class TokenService {
 
         String tokenHash = hashToken(refreshTokenValue);
 
+        // P0-4: Pessimistic lock prevents concurrent refresh
         RefreshToken existing = refreshTokenRepository
-                .findByTokenHash(tokenHash)
+                .findByTokenHashForUpdate(tokenHash)
                 .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
 
         // =====================================================

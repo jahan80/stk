@@ -22,7 +22,7 @@ public class PermissionController {
     private final ApiResponseFactory responseFactory;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('role:read')")
+    @PreAuthorize("hasAuthority('permission:read')")
     public ApiResponse<List<PermissionResponse>> listAll() {
         return responseFactory.success(
                 ApiCode.SUCCESS,
