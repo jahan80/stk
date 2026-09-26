@@ -54,7 +54,7 @@ public class ConfigurationController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('config:write')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ConfigurationResponse> create(
             @Valid @RequestBody ConfigurationRequest request
@@ -70,7 +70,7 @@ public class ConfigurationController {
     }
 
     @PutMapping("/{configKey}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('config:write')")
     public ApiResponse<ConfigurationResponse> update(
             @PathVariable String configKey,
             @Valid @RequestBody ConfigurationRequest request
@@ -86,7 +86,7 @@ public class ConfigurationController {
     }
 
     @DeleteMapping("/{configKey}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('config:delete')")
     public ApiResponse<Void> delete(
             @PathVariable String configKey
     ) {
@@ -101,7 +101,7 @@ public class ConfigurationController {
 
 
     @PostMapping("/{configKey}/reset-default")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('config:write')")
     public ApiResponse<ConfigurationResponse> resetToDefault(
             @PathVariable String configKey
     ) {
@@ -115,7 +115,7 @@ public class ConfigurationController {
         );
     }
     @PostMapping("/reset-defaults")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('config:write')")
     public ApiResponse<List<ConfigurationResponse>> resetAllToDefault() {
 
         List<ConfigurationResponse> configurations =
@@ -131,7 +131,7 @@ public class ConfigurationController {
     }
 
     @PostMapping("/{configKey}/set-default")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('config:write')")
     public ApiResponse<ConfigurationResponse> setCurrentValueAsDefault(
             @PathVariable String configKey
     ) {
