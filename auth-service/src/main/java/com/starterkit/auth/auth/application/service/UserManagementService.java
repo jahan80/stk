@@ -2,7 +2,6 @@ package com.starterkit.auth.auth.application.service;
 
 import com.starterkit.auth.auth.api.dto.AssignRoleRequest;
 import com.starterkit.auth.auth.api.dto.CreateUserRequest;
-import com.starterkit.auth.auth.application.exception.UserAlreadyExistsException;
 import com.starterkit.auth.auth.api.dto.UserDetailResponse;
 import com.starterkit.auth.auth.api.dto.UserSummaryResponse;
 import com.starterkit.auth.auth.application.exception.DeletedRoleException;
@@ -14,8 +13,6 @@ import com.starterkit.auth.auth.domain.repository.RoleRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +26,7 @@ public class UserManagementService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserCreationService userCreationService;
 
     public List<UserSummaryResponse> listAll() {
         return userRepository.findAllWithRole().stream()
@@ -98,37 +95,18 @@ public class UserManagementService {
     @Transactional
     public UserDetailResponse createUser(CreateUserRequest request) {
 
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new UserAlreadyExistsException("username");
-        }
+        User saved = userCreationService.createUser(
+                new UserCreationService.UserCreationData(
+                        request.getUsername(),
+                        request.getPassword(),
+                        request.getEmail(),
+                        request.getMobileNumber(),
+                        request.getFirstName(),
+                        request.getLastName(),
+                        request.getRoleId()
+                )
+        );
 
-        if (StringUtils.hasText(request.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
-            throw new UserAlreadyExistsException("email");
-        }
-
-        if (StringUtils.hasText(request.getMobileNumber())
-                && userRepository.existsByMobileNumber(request.getMobileNumber())) {
-            throw new UserAlreadyExistsException("mobileNumber");
-        }
-
-        Role role = roleRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new RoleNotFoundException(request.getRoleId()));
-
-        if (role.getDeletedAt() != null) {
-            throw new DeletedRoleException(role.getId());
-        }
-
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setEmail(request.getEmail());
-        user.setMobileNumber(request.getMobileNumber());
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setRole(role);
-
-        User saved = userRepository.save(user);
         return toDetail(saved);
     }
 

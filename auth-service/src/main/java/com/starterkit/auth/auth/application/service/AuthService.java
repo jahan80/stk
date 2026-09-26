@@ -7,7 +7,6 @@ import com.starterkit.auth.auth.api.dto.RegisterRequest;
 import com.starterkit.auth.auth.api.dto.RegisterResponse;
 import com.starterkit.auth.auth.api.dto.UserResponse;
 import com.starterkit.auth.auth.application.exception.LoginException;
-import com.starterkit.auth.auth.application.exception.UserAlreadyExistsException;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator.IdentifierType;
 import com.starterkit.auth.auth.application.validator.RegisterConfigurationValidator;
@@ -21,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -37,41 +35,29 @@ public class AuthService {
     private final RegisterConfigurationValidator registerConfigurationValidator;
     private final LoginConfigurationValidator loginConfigurationValidator;
     private final TokenService tokenService;
+    private final UserCreationService userCreationService;
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
 
         registerConfigurationValidator.validate(request);
 
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new UserAlreadyExistsException("username");
-        }
-
-        if (StringUtils.hasText(request.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
-            throw new UserAlreadyExistsException("email");
-        }
-
-        if (StringUtils.hasText(request.getMobileNumber())
-                && userRepository.existsByMobileNumber(request.getMobileNumber())) {
-            throw new UserAlreadyExistsException("mobileNumber");
-        }
-
         Role defaultRole = roleRepository.findByName(DEFAULT_ROLE)
                 .orElseThrow(() -> new IllegalStateException(
                         "Default role '" + DEFAULT_ROLE + "' not found in database"
                 ));
 
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
-        user.setMobileNumber(request.getMobileNumber());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setRole(defaultRole);
-
-        User savedUser = userRepository.save(user);
+        User savedUser = userCreationService.createUser(
+                new UserCreationService.UserCreationData(
+                        request.getUsername(),
+                        request.getPassword(),
+                        request.getEmail(),
+                        request.getMobileNumber(),
+                        request.getFirstName(),
+                        request.getLastName(),
+                        defaultRole.getId()
+                )
+        );
 
         return RegisterResponse.builder()
                 .id(savedUser.getId())
