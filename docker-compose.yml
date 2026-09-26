@@ -134,6 +134,7 @@ services:
       # Route URIs (used by application.properties via env vars)
       AUTH_SERVICE_URL: http://auth-service:8081
       AUDIT_SERVICE_URL: http://audit-service:8082
+      NOTIF_SERVICE_URL: http://notif-service:8083
     depends_on:
       - auth-service
       - audit-service
