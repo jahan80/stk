@@ -127,4 +127,21 @@ public class TokenService {
             String refreshToken,
             long expiresInSeconds
     ) {}
+
+    @Transactional
+    public void logout(String refreshTokenValue) {
+
+        String tokenHash = hashToken(refreshTokenValue);
+
+        RefreshToken existing = refreshTokenRepository
+                .findByTokenHash(tokenHash)
+                .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
+
+        if (!existing.isRevoked()) {
+            existing.setRevoked(true);
+            existing.setRevokedAt(Instant.now());
+            refreshTokenRepository.save(existing);
+        }
+    }
+
 }

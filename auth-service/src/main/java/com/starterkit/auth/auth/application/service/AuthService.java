@@ -160,4 +160,10 @@ public class AuthService {
                 .enabled(user.isEnabled())
                 .build();
     }
+
+    @Transactional
+    public void logout(RefreshTokenRequest request) {
+        tokenService.logout(request.getRefreshToken());
+    }
+
 }
