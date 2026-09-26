@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.postgresql.util.PSQLException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -275,4 +276,12 @@ public class GlobalExceptionHandler {
 
         return responseFactory.error(ApiCode.INTERNAL_ERROR);
     }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleAccessDenied(AccessDeniedException exception) {
+        log.warn("Access denied: {}", exception.getMessage());
+        return responseFactory.error(ApiCode.FORBIDDEN);
+    }
+
 }

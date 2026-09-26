@@ -10,6 +10,7 @@ import com.starterkit.auth.configuration.domain.entity.Configuration;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -53,6 +54,7 @@ public class ConfigurationController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ConfigurationResponse> create(
             @Valid @RequestBody ConfigurationRequest request
@@ -68,6 +70,7 @@ public class ConfigurationController {
     }
 
     @PutMapping("/{configKey}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<ConfigurationResponse> update(
             @PathVariable String configKey,
             @Valid @RequestBody ConfigurationRequest request
@@ -83,6 +86,7 @@ public class ConfigurationController {
     }
 
     @DeleteMapping("/{configKey}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> delete(
             @PathVariable String configKey
     ) {
@@ -97,6 +101,7 @@ public class ConfigurationController {
 
 
     @PostMapping("/{configKey}/reset-default")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<ConfigurationResponse> resetToDefault(
             @PathVariable String configKey
     ) {
@@ -110,6 +115,7 @@ public class ConfigurationController {
         );
     }
     @PostMapping("/reset-defaults")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<ConfigurationResponse>> resetAllToDefault() {
 
         List<ConfigurationResponse> configurations =
@@ -125,6 +131,7 @@ public class ConfigurationController {
     }
 
     @PostMapping("/{configKey}/set-default")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<ConfigurationResponse> setCurrentValueAsDefault(
             @PathVariable String configKey
     ) {

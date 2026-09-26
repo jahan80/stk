@@ -107,6 +107,11 @@ public enum ApiCode {
             "Unsupported media type"
     ),
 
+    FORBIDDEN(
+            "AUTH-FORBIDDEN",
+            "Access denied: insufficient permissions"
+    ),
+
     // ========================================
     // Server / Generic
     // ========================================
