@@ -183,8 +183,9 @@ public class ConfigurationService {
     private void validateConfigKey(String configKey) {
 
         if (!StringUtils.hasText(configKey)) {
-            throw new IllegalArgumentException(
-                    "Configuration key must not be empty"
+            throw new ConfigurationValidationException(
+                    "configKey",
+                    ConfigurationValidationException.Reason.REQUIRED
             );
         }
     }

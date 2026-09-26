@@ -2,10 +2,8 @@
 ./.gitignore
 ./DocBE_v0.1.docx
 ./Doc_EndPint_v0.1.docx
-./all_project_files.txt
 ./audit-service/pom.xml
 ./audit-service/src/main/java/com/starterkit/audit/AuditServiceApplication.java
-./auth-service/all_project_files.txt
 ./auth-service/pom.xml
 ./auth-service/src/main/java/com/starterkit/auth/AuthServiceApplication.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/api/AuthController.java
@@ -25,8 +23,15 @@
 ./auth-service/src/main/java/com/starterkit/auth/auth/api/dto/UserResponse.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/api/dto/UserSummaryResponse.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/LoginException.java
+./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/PermissionNotFoundException.java
+./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/RoleAlreadyExistsException.java
+./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/RoleInUseException.java
+./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/RoleNotFoundException.java
+./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/SystemRoleProtectedException.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/UserAlreadyExistsException.java
+./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/UserNotFoundException.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/application/service/AuthService.java
+./auth-service/src/main/java/com/starterkit/auth/auth/application/service/RefreshTokenCleanupJob.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/application/service/RoleService.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/application/service/TokenService.java
 ./auth-service/src/main/java/com/starterkit/auth/auth/application/service/UserManagementService.java
@@ -453,10 +458,12 @@ package com.starterkit.auth;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
 @SpringBootApplication
 @EnableMethodSecurity
+@EnableScheduling
 public class AuthServiceApplication {
 
     public static void main(String[] args) {
@@ -780,6 +787,8 @@ package com.starterkit.auth.auth.api.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @Builder
 public class LoginResponse {
@@ -793,6 +802,7 @@ public class LoginResponse {
     private final String username;
     private final String email;
     private final String role;
+    private final List<String> permissions;
 }
 
 ===== ./auth-service/src/main/java/com/starterkit/auth/auth/api/dto/PermissionResponse.java =====
@@ -993,6 +1003,90 @@ public class LoginException extends RuntimeException {
         this.apiCode = apiCode;
     }
 }
+===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/PermissionNotFoundException.java =====
+package com.starterkit.auth.auth.application.exception;
+
+import lombok.Getter;
+
+@Getter
+public class PermissionNotFoundException extends RuntimeException {
+
+    private final Long permissionId;
+
+    public PermissionNotFoundException(Long permissionId) {
+        super("Permission not found: " + permissionId);
+        this.permissionId = permissionId;
+    }
+}
+
+===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/RoleAlreadyExistsException.java =====
+package com.starterkit.auth.auth.application.exception;
+
+import lombok.Getter;
+
+@Getter
+public class RoleAlreadyExistsException extends RuntimeException {
+
+    private final String roleName;
+
+    public RoleAlreadyExistsException(String roleName) {
+        super("Role already exists: " + roleName);
+        this.roleName = roleName;
+    }
+}
+
+===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/RoleInUseException.java =====
+package com.starterkit.auth.auth.application.exception;
+
+import lombok.Getter;
+
+@Getter
+public class RoleInUseException extends RuntimeException {
+
+    private final Long roleId;
+    private final long userCount;
+
+    public RoleInUseException(Long roleId, long userCount) {
+        super("Role " + roleId + " is assigned to " + userCount + " users");
+        this.roleId = roleId;
+        this.userCount = userCount;
+    }
+}
+
+===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/RoleNotFoundException.java =====
+package com.starterkit.auth.auth.application.exception;
+
+import lombok.Getter;
+
+@Getter
+public class RoleNotFoundException extends RuntimeException {
+
+    private final Long roleId;
+
+    public RoleNotFoundException(Long roleId) {
+        super("Role not found: " + roleId);
+        this.roleId = roleId;
+    }
+}
+
+===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/SystemRoleProtectedException.java =====
+package com.starterkit.auth.auth.application.exception;
+
+import lombok.Getter;
+
+@Getter
+public class SystemRoleProtectedException extends RuntimeException {
+
+    private final String roleName;
+    private final String action;
+
+    public SystemRoleProtectedException(String roleName, String action) {
+        super("System role '" + roleName + "' cannot be " + action);
+        this.roleName = roleName;
+        this.action = action;
+    }
+}
+
 ===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/UserAlreadyExistsException.java =====
 package com.starterkit.auth.auth.application.exception;
 
@@ -1007,6 +1101,22 @@ public class UserAlreadyExistsException extends RuntimeException {
         this.field = field;
     }
 }
+===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/exception/UserNotFoundException.java =====
+package com.starterkit.auth.auth.application.exception;
+
+import lombok.Getter;
+
+@Getter
+public class UserNotFoundException extends RuntimeException {
+
+    private final Long userId;
+
+    public UserNotFoundException(Long userId) {
+        super("User not found: " + userId);
+        this.userId = userId;
+    }
+}
+
 ===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/service/AuthService.java =====
 package com.starterkit.auth.auth.application.service;
 
@@ -1178,18 +1288,54 @@ public class AuthService {
 
 }
 
+===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/service/RefreshTokenCleanupJob.java =====
+package com.starterkit.auth.auth.application.service;
+
+import com.starterkit.auth.auth.domain.repository.RefreshTokenRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class RefreshTokenCleanupJob {
+
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    /**
+     * Every day at 3 AM, delete expired refresh tokens.
+     */
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void cleanupExpiredTokens() {
+        int deleted = refreshTokenRepository.deleteExpired(Instant.now());
+        log.info("Refresh token cleanup: deleted {} expired tokens", deleted);
+    }
+}
+
 ===== ./auth-service/src/main/java/com/starterkit/auth/auth/application/service/RoleService.java =====
 package com.starterkit.auth.auth.application.service;
 
 import com.starterkit.auth.auth.api.dto.PermissionResponse;
 import com.starterkit.auth.auth.api.dto.RoleRequest;
 import com.starterkit.auth.auth.api.dto.RoleResponse;
+import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
+import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
+import com.starterkit.auth.auth.application.exception.RoleInUseException;
+import com.starterkit.auth.auth.application.exception.RoleNotFoundException;
+import com.starterkit.auth.auth.application.exception.SystemRoleProtectedException;
 import com.starterkit.auth.auth.domain.entity.Permission;
 import com.starterkit.auth.auth.domain.entity.Role;
 import com.starterkit.auth.auth.domain.repository.PermissionRepository;
 import com.starterkit.auth.auth.domain.repository.RoleRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -1198,6 +1344,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -1215,8 +1362,7 @@ public class RoleService {
 
     public RoleResponse getById(Long id) {
         Role role = roleRepository.findByIdWithPermissions(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + id));
+                .orElseThrow(() -> new RoleNotFoundException(id));
         return toResponse(role);
     }
 
@@ -1229,8 +1375,7 @@ public class RoleService {
     @Transactional
     public RoleResponse create(RoleRequest request) {
         if (roleRepository.existsByName(request.getName())) {
-            throw new IllegalArgumentException(
-                    "Role already exists: " + request.getName());
+            throw new RoleAlreadyExistsException(request.getName());
         }
 
         Role role = new Role();
@@ -1245,12 +1390,10 @@ public class RoleService {
     @Transactional
     public RoleResponse update(Long id, RoleRequest request) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + id));
+                .orElseThrow(() -> new RoleNotFoundException(id));
 
         if (role.isSystemRole()) {
-            throw new IllegalStateException(
-                    "System roles cannot be modified: " + role.getName());
+            throw new SystemRoleProtectedException(role.getName(), "modified");
         }
 
         role.setDescription(request.getDescription());
@@ -1262,18 +1405,15 @@ public class RoleService {
     @Transactional
     public void delete(Long id) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + id));
+                .orElseThrow(() -> new RoleNotFoundException(id));
 
         if (role.isSystemRole()) {
-            throw new IllegalStateException(
-                    "System roles cannot be deleted: " + role.getName());
+            throw new SystemRoleProtectedException(role.getName(), "deleted");
         }
 
         long usersWithRole = userRepository.countByRole(role);
         if (usersWithRole > 0) {
-            throw new IllegalStateException(
-                    "Cannot delete role with " + usersWithRole + " assigned users");
+            throw new RoleInUseException(id, usersWithRole);
         }
 
         role.setDeletedAt(Instant.now());
@@ -1283,13 +1423,11 @@ public class RoleService {
     @Transactional
     public RoleResponse assignPermissions(Long roleId, Set<Long> permissionIds) {
         Role role = roleRepository.findByIdWithPermissions(roleId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + roleId));
+                .orElseThrow(() -> new RoleNotFoundException(roleId));
 
         Set<Permission> permissions = permissionIds.stream()
                 .map(pid -> permissionRepository.findById(pid)
-                        .orElseThrow(() -> new IllegalArgumentException(
-                                "Permission not found: " + pid)))
+                        .orElseThrow(() -> new PermissionNotFoundException(pid)))
                 .collect(Collectors.toSet());
 
         role.setPermissions(permissions);
@@ -1476,16 +1614,21 @@ package com.starterkit.auth.auth.application.service;
 import com.starterkit.auth.auth.api.dto.AssignRoleRequest;
 import com.starterkit.auth.auth.api.dto.UserDetailResponse;
 import com.starterkit.auth.auth.api.dto.UserSummaryResponse;
+import com.starterkit.auth.auth.application.exception.RoleNotFoundException;
+import com.starterkit.auth.auth.application.exception.SystemRoleProtectedException;
+import com.starterkit.auth.auth.application.exception.UserNotFoundException;
 import com.starterkit.auth.auth.domain.entity.Role;
 import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.RoleRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -1502,23 +1645,20 @@ public class UserManagementService {
 
     public UserDetailResponse getById(Long id) {
         User user = userRepository.findByIdWithRole(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found: " + id));
+                .orElseThrow(() -> new UserNotFoundException(id));
         return toDetail(user);
     }
 
     @Transactional
     public UserDetailResponse assignRole(Long userId, AssignRoleRequest request) {
         User user = userRepository.findByIdWithRole(userId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         Role role = roleRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + request.getRoleId()));
+                .orElseThrow(() -> new RoleNotFoundException(request.getRoleId()));
 
         if (role.getDeletedAt() != null) {
-            throw new IllegalStateException("Cannot assign deleted role");
+            throw new SystemRoleProtectedException("deleted role", "assigned");
         }
 
         user.setRole(role);
@@ -1529,8 +1669,7 @@ public class UserManagementService {
     @Transactional
     public UserDetailResponse setEnabled(Long userId, boolean enabled) {
         User user = userRepository.findByIdWithRole(userId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         user.setEnabled(enabled);
         User saved = userRepository.save(user);
@@ -2702,6 +2841,12 @@ import com.starterkit.auth.shared.api.response.ApiResponse;
 import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import com.starterkit.auth.shared.api.response.ValidationErrorResponse;
 import com.starterkit.auth.auth.application.exception.LoginException;
+import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
+import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
+import com.starterkit.auth.auth.application.exception.RoleInUseException;
+import com.starterkit.auth.auth.application.exception.RoleNotFoundException;
+import com.starterkit.auth.auth.application.exception.SystemRoleProtectedException;
+import com.starterkit.auth.auth.application.exception.UserNotFoundException;
 import com.starterkit.auth.auth.application.exception.UserAlreadyExistsException;
 import com.starterkit.auth.configuration.exception.ConfigurationAlreadyExistsException;
 import com.starterkit.auth.configuration.exception.ConfigurationNotFoundException;
@@ -2982,18 +3127,51 @@ public class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(IllegalStateException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleIllegalState(IllegalStateException exception) {
-        log.warn("Illegal state: {}", exception.getMessage());
-        return responseFactory.error(ApiCode.INVALID_REQUEST);
+
+    // =========================================================
+    // 6. Role / Permission / User exceptions
+    // =========================================================
+
+    @ExceptionHandler(RoleNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleRoleNotFound(RoleNotFoundException exception) {
+        log.warn("Role not found: {}", exception.getRoleId());
+        return responseFactory.error(ApiCode.ROLE_NOT_FOUND);
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException exception) {
-        log.warn("Illegal argument: {}", exception.getMessage());
-        return responseFactory.error(ApiCode.INVALID_REQUEST);
+    @ExceptionHandler(RoleAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleRoleAlreadyExists(RoleAlreadyExistsException exception) {
+        log.warn("Role already exists: {}", exception.getRoleName());
+        return responseFactory.error(ApiCode.ROLE_ALREADY_EXISTS);
+    }
+
+    @ExceptionHandler(RoleInUseException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleRoleInUse(RoleInUseException exception) {
+        log.warn("Role in use: id={}, users={}", exception.getRoleId(), exception.getUserCount());
+        return responseFactory.error(ApiCode.ROLE_IN_USE);
+    }
+
+    @ExceptionHandler(SystemRoleProtectedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleSystemRoleProtected(SystemRoleProtectedException exception) {
+        log.warn("System role protected: name={}, action={}", exception.getRoleName(), exception.getAction());
+        return responseFactory.error(ApiCode.ROLE_SYSTEM_PROTECTED);
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleUserNotFound(UserNotFoundException exception) {
+        log.warn("User not found: {}", exception.getUserId());
+        return responseFactory.error(ApiCode.USER_NOT_FOUND);
+    }
+
+    @ExceptionHandler(PermissionNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handlePermissionNotFound(PermissionNotFoundException exception) {
+        log.warn("Permission not found: {}", exception.getPermissionId());
+        return responseFactory.error(ApiCode.PERMISSION_NOT_FOUND);
     }
 
 }
@@ -3042,6 +3220,39 @@ public enum ApiCode {
     USER_FIELD_UNKNOWN(
             "AUTH-USER-999",
             "Unknown user field"
+    ),
+
+    USER_NOT_FOUND(
+            "AUTH-USER-005",
+            "User not found"
+    ),
+
+    // ========================================
+    // Role
+    // ========================================
+    ROLE_NOT_FOUND(
+            "AUTH-ROLE-001",
+            "Role not found"
+    ),
+
+    ROLE_ALREADY_EXISTS(
+            "AUTH-ROLE-002",
+            "Role already exists"
+    ),
+
+    ROLE_SYSTEM_PROTECTED(
+            "AUTH-ROLE-003",
+            "System roles cannot be modified or deleted"
+    ),
+
+    ROLE_IN_USE(
+            "AUTH-ROLE-004",
+            "Role is assigned to users and cannot be deleted"
+    ),
+
+    PERMISSION_NOT_FOUND(
+            "AUTH-PERM-001",
+            "Permission not found"
     ),
 
     // ========================================
@@ -4149,7 +4360,33 @@ CREATE INDEX idx_users_role_id ON auth.users(role_id);
 
 COMMENT ON COLUMN auth.users.role_id IS 'User role (single-role model)';
 
-================ KEYS (filenames only) ================
-./auth-service/src/main/resources/keys/.gitkeep
-./auth-service/src/main/resources/keys/jwt-private.pem
-./auth-service/src/main/resources/keys/jwt-public.pem
+================ OTHER FILES ================
+
+===== .gitignore =====
+# Maven
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Env
+.env
+*.local
+
+
+
+# TODO (production): move JWT keys out of git
+# auth-service/src/main/resources/keys/*.pem

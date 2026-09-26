@@ -27,7 +27,7 @@ public class UserManagementService {
     private final RoleRepository roleRepository;
 
     public List<UserSummaryResponse> listAll() {
-        return userRepository.findAll().stream()
+        return userRepository.findAllWithRole().stream()
                 .map(this::toSummary)
                 .toList();
     }

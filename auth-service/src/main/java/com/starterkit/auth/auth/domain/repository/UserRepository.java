@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -20,6 +21,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     long countByRole(Role role);
 
+    @Query("SELECT u FROM User u JOIN FETCH u.role ORDER BY u.id")
+    List<User> findAllWithRole();
+
     @Query("SELECT DISTINCT u FROM User u " +
            "JOIN FETCH u.role r " +
            "LEFT JOIN FETCH r.permissions " +
@@ -31,4 +35,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "LEFT JOIN FETCH r.permissions " +
            "WHERE u.username = :username")
     Optional<User> findByUsernameWithRole(@Param("username") String username);
+
+    @Query("SELECT DISTINCT u FROM User u " +
+           "JOIN FETCH u.role r " +
+           "LEFT JOIN FETCH r.permissions " +
+           "WHERE u.email = :email")
+    Optional<User> findByEmailWithRole(@Param("email") String email);
+
+    @Query("SELECT DISTINCT u FROM User u " +
+           "JOIN FETCH u.role r " +
+           "LEFT JOIN FETCH r.permissions " +
+           "WHERE u.mobileNumber = :mobileNumber")
+    Optional<User> findByMobileNumberWithRole(@Param("mobileNumber") String mobileNumber);
 }

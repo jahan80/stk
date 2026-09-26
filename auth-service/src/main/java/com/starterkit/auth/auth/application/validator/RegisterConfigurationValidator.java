@@ -15,15 +15,9 @@ public class RegisterConfigurationValidator {
 
     public void validate(RegisterRequest request) {
 
-        validateRequired(
-                "username",
-                request.getUsername()
-        );
-
-        validateRequired(
-                "password",
-                request.getPassword()
-        );
+        // username and password are ALWAYS required - not configurable
+        validateRequired("username", request.getUsername());
+        validateRequired("password", request.getPassword());
 
         validateField(
                 "email",

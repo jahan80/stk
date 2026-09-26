@@ -75,6 +75,7 @@ public class RoleService {
             throw new SystemRoleProtectedException(role.getName(), "modified");
         }
 
+        // name is immutable to avoid breaking permission references
         role.setDescription(request.getDescription());
 
         Role saved = roleRepository.save(role);

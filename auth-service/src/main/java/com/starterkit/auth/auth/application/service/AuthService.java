@@ -11,6 +11,7 @@ import com.starterkit.auth.auth.application.exception.UserAlreadyExistsException
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator.IdentifierType;
 import com.starterkit.auth.auth.application.validator.RegisterConfigurationValidator;
+import com.starterkit.auth.auth.domain.entity.Permission;
 import com.starterkit.auth.auth.domain.entity.Role;
 import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.RoleRepository;
@@ -21,6 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -90,11 +93,11 @@ public class AuthService {
                 .detectIdentifierType(request.getIdentifier());
 
         User user = switch (type) {
-            case EMAIL -> userRepository.findByEmail(request.getIdentifier())
+            case EMAIL -> userRepository.findByEmailWithRole(request.getIdentifier())
                     .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
-            case MOBILE -> userRepository.findByMobileNumber(request.getIdentifier())
+            case MOBILE -> userRepository.findByMobileNumberWithRole(request.getIdentifier())
                     .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
-            case USERNAME -> userRepository.findByUsername(request.getIdentifier())
+            case USERNAME -> userRepository.findByUsernameWithRole(request.getIdentifier())
                     .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
         };
 
@@ -108,16 +111,7 @@ public class AuthService {
 
         TokenService.TokenPair tokens = tokenService.generateTokens(user);
 
-        return LoginResponse.builder()
-                .accessToken(tokens.accessToken())
-                .refreshToken(tokens.refreshToken())
-                .tokenType("Bearer")
-                .expiresIn(tokens.expiresInSeconds())
-                .userId(user.getId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .role(user.getRole().getName())
-                .build();
+        return buildLoginResponse(user, tokens);
     }
 
     @Transactional
@@ -131,16 +125,7 @@ public class AuthService {
         User user = userRepository.findByIdWithRole(userId)
                 .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
 
-        return LoginResponse.builder()
-                .accessToken(tokens.accessToken())
-                .refreshToken(tokens.refreshToken())
-                .tokenType("Bearer")
-                .expiresIn(tokens.expiresInSeconds())
-                .userId(user.getId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .role(user.getRole().getName())
-                .build();
+        return buildLoginResponse(user, tokens);
     }
 
     @Transactional(readOnly = true)
@@ -166,4 +151,21 @@ public class AuthService {
         tokenService.logout(request.getRefreshToken());
     }
 
+    private LoginResponse buildLoginResponse(User user, TokenService.TokenPair tokens) {
+        List<String> permissions = user.getRole().getPermissions().stream()
+                .map(Permission::getCode)
+                .toList();
+
+        return LoginResponse.builder()
+                .accessToken(tokens.accessToken())
+                .refreshToken(tokens.refreshToken())
+                .tokenType("Bearer")
+                .expiresIn(tokens.expiresInSeconds())
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().getName())
+                .permissions(permissions)
+                .build();
+    }
 }
