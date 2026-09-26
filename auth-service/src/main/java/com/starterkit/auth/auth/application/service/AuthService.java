@@ -10,6 +10,8 @@ import com.starterkit.auth.auth.application.event.AuthEventPublisher;
 import com.starterkit.auth.auth.application.event.UserLoggedInEvent;
 import com.starterkit.auth.auth.application.event.UserLoggedOutEvent;
 import com.starterkit.auth.auth.application.event.UserRegisteredEvent;
+import com.starterkit.auth.auth.application.exception.EmailNotVerifiedException;
+import com.starterkit.auth.configuration.application.ConfigurationService;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator.IdentifierType;
@@ -39,6 +41,8 @@ public class AuthService {
     private final RegisterConfigurationValidator registerConfigurationValidator;
     private final LoginConfigurationValidator loginConfigurationValidator;
     private final TokenService tokenService;
+    private final EmailVerificationService emailVerificationService;
+    private final ConfigurationService configurationService;
     private final UserCreationService userCreationService;
     private final AuthEventPublisher eventPublisher;
 
@@ -70,6 +74,17 @@ public class AuthService {
                 savedUser.getEmail()
         ));
 
+        // Send email verification code (only if verification is required)
+        boolean verificationRequired = false;
+        try {
+            verificationRequired = configurationService.getBoolean(
+                    "AUTH.REGISTER.EMAIL.VERIFICATION.REQUIRED");
+        } catch (Exception ignored) {}
+
+        if (verificationRequired && savedUser.getEmail() != null) {
+            emailVerificationService.sendVerificationCode(savedUser);
+        }
+
         return RegisterResponse.builder()
                 .id(savedUser.getId())
                 .username(savedUser.getUsername())
@@ -78,6 +93,7 @@ public class AuthService {
                 .firstName(savedUser.getFirstName())
                 .lastName(savedUser.getLastName())
                 .role(savedUser.getRole().getName())
+                .emailVerified(savedUser.isEmailVerified())
                 .build();
     }
 
@@ -104,6 +120,21 @@ public class AuthService {
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new LoginException(ApiCode.INVALID_CREDENTIALS);
+        }
+
+        // Check email verification (if required by config)
+        boolean emailVerificationRequired = false;
+        try {
+            emailVerificationRequired = configurationService.getBoolean(
+                    "AUTH.LOGIN.EMAIL.VERIFIED.REQUIRED");
+        } catch (Exception ex) {
+            // Config not found - treat as not required
+        }
+
+        if (emailVerificationRequired
+                && user.getEmail() != null
+                && !user.isEmailVerified()) {
+            throw new EmailNotVerifiedException(user.getEmail());
         }
 
         TokenService.TokenPair tokens = tokenService.generateTokens(user);
@@ -177,6 +208,7 @@ public class AuthService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole().getName())
+                .emailVerified(user.isEmailVerified())
                 .permissions(permissions)
                 .build();
     }

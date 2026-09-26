@@ -5,8 +5,12 @@ import com.starterkit.auth.auth.api.dto.LoginResponse;
 import com.starterkit.auth.auth.api.dto.RefreshTokenRequest;
 import com.starterkit.auth.auth.api.dto.RegisterRequest;
 import com.starterkit.auth.auth.api.dto.RegisterResponse;
+import com.starterkit.auth.auth.api.dto.ResendVerificationRequest;
+import com.starterkit.auth.auth.api.dto.VerifyEmailRequest;
 import com.starterkit.auth.auth.api.dto.UserResponse;
 import com.starterkit.auth.auth.application.service.AuthService;
+import com.starterkit.auth.auth.application.service.EmailVerificationService;
+import com.starterkit.auth.auth.domain.repository.UserRepository;
 import com.starterkit.auth.shared.api.response.ApiCode;
 import com.starterkit.auth.shared.api.response.ApiResponse;
 import com.starterkit.auth.shared.api.response.ApiResponseFactory;
@@ -29,6 +33,8 @@ public class AuthController {
 
     private final AuthService authService;
     private final ApiResponseFactory responseFactory;
+    private final EmailVerificationService emailVerificationService;
+    private final UserRepository userRepository;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -84,6 +90,38 @@ public class AuthController {
             @Valid @RequestBody RefreshTokenRequest request
     ) {
         authService.logout(request);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                null
+        );
+    }
+
+
+    @PostMapping("/email/verify")
+    public ApiResponse<Void> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request
+    ) {
+        emailVerificationService.verifyCode(
+                request.getEmail(),
+                request.getCode()
+        );
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                null
+        );
+    }
+
+    @PostMapping("/email/resend-verification")
+    public ApiResponse<Void> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request
+    ) {
+        // Find user by email
+        var user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new com.starterkit.auth.auth.application.exception.InvalidVerificationCodeException());
+
+        emailVerificationService.sendVerificationCode(user);
 
         return responseFactory.success(
                 ApiCode.SUCCESS,

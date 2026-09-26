@@ -62,7 +62,9 @@ public class SecurityConfig {
                                 "/auth/register",
                                 "/auth/login",
                                 "/auth/refresh",
-                                "/auth/logout"
+                                "/auth/logout",
+                                "/auth/email/verify",
+                                "/auth/email/resend-verification"
                         ).permitAll()
 
                         .requestMatchers(

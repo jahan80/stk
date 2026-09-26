@@ -16,6 +16,7 @@ public class UserDetailResponse {
     private final String lastName;
     private final String role;
     private final boolean enabled;
+    private final boolean emailVerified;
     private final Instant createdAt;
     private final Instant updatedAt;
 }

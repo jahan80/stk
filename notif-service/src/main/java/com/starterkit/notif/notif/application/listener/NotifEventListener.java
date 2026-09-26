@@ -49,8 +49,8 @@ public class NotifEventListener {
         Map<String, Object> data = message.getData();
 
         SmsRequest request = new SmsRequest();
-        request.setTo((String) data.get("to"));
-        request.setMessage((String) data.get("message"));
+        request.setTo(asString(data.get("to")));
+        request.setMessage(asString(data.get("message")));
 
         notificationService.sendSms(request);
     }
@@ -59,9 +59,9 @@ public class NotifEventListener {
         Map<String, Object> data = message.getData();
 
         EmailRequest request = new EmailRequest();
-        request.setTo((String) data.get("to"));
-        request.setSubject((String) data.get("subject"));
-        request.setBody((String) data.get("body"));
+        request.setTo(asString(data.get("to")));
+        request.setSubject(asString(data.get("subject")));
+        request.setBody(asString(data.get("body")));
 
         notificationService.sendEmail(request);
     }
@@ -70,10 +70,14 @@ public class NotifEventListener {
         Map<String, Object> data = message.getData();
 
         PushRequest request = new PushRequest();
-        request.setDeviceToken((String) data.get("deviceToken"));
-        request.setTitle((String) data.get("title"));
-        request.setBody((String) data.get("body"));
+        request.setDeviceToken(asString(data.get("deviceToken")));
+        request.setTitle(asString(data.get("title")));
+        request.setBody(asString(data.get("body")));
 
         notificationService.sendPush(request);
+    }
+
+    private String asString(Object value) {
+        return value != null ? value.toString() : null;
     }
 }

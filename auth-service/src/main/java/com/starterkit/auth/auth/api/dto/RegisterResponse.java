@@ -6,11 +6,12 @@ import lombok.Getter;
 @Getter
 @Builder
 public class RegisterResponse {
-    private Long id;
-    private String username;
-    private String email;
-    private String mobileNumber;
-    private String firstName;
-    private String lastName;
-    private String role;
+    private final Long id;
+    private final String username;
+    private final String email;
+    private final String mobileNumber;
+    private final String firstName;
+    private final String lastName;
+    private final String role;
+    private final boolean emailVerified;
 }

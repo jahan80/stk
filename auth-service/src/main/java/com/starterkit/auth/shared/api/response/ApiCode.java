@@ -104,6 +104,21 @@ public enum ApiCode {
             "User account is disabled"
     ),
 
+    EMAIL_NOT_VERIFIED(
+            "AUTH-LOGIN-005",
+            "Email not verified"
+    ),
+
+    INVALID_VERIFICATION_CODE(
+            "AUTH-VERIFY-001",
+            "Invalid or expired verification code"
+    ),
+
+    EMAIL_ALREADY_VERIFIED(
+            "AUTH-VERIFY-002",
+            "Email already verified"
+    ),
+
     // ========================================
     // Configuration
     // ========================================

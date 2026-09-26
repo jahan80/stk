@@ -5,6 +5,9 @@ import com.starterkit.auth.shared.api.response.ApiResponse;
 import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import com.starterkit.auth.shared.api.response.ValidationErrorResponse;
 import com.starterkit.auth.auth.application.exception.DeletedRoleException;
+import com.starterkit.auth.auth.application.exception.EmailAlreadyVerifiedException;
+import com.starterkit.auth.auth.application.exception.EmailNotVerifiedException;
+import com.starterkit.auth.auth.application.exception.InvalidVerificationCodeException;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
 import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
@@ -345,6 +348,32 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleDeletedRole(DeletedRoleException exception) {
         log.warn("Deleted role used: {}", exception.getRoleId());
         return responseFactory.error(ApiCode.ROLE_DELETED);
+    }
+
+
+    // =========================================================
+    // 7. Email Verification exceptions
+    // =========================================================
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleEmailNotVerified(EmailNotVerifiedException exception) {
+        log.warn("Email not verified: {}", exception.getEmail());
+        return responseFactory.error(ApiCode.EMAIL_NOT_VERIFIED);
+    }
+
+    @ExceptionHandler(InvalidVerificationCodeException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleInvalidVerificationCode(InvalidVerificationCodeException exception) {
+        log.warn("Invalid verification code");
+        return responseFactory.error(ApiCode.INVALID_VERIFICATION_CODE);
+    }
+
+    @ExceptionHandler(EmailAlreadyVerifiedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleEmailAlreadyVerified(EmailAlreadyVerifiedException exception) {
+        log.warn("Email already verified: {}", exception.getEmail());
+        return responseFactory.error(ApiCode.EMAIL_ALREADY_VERIFIED);
     }
 
 }

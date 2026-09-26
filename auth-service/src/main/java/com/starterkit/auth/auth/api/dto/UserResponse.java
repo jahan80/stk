@@ -15,4 +15,5 @@ public class UserResponse {
     private final String lastName;
     private final String role;
     private final boolean enabled;
+    private final boolean emailVerified;
 }

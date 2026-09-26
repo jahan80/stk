@@ -18,5 +18,6 @@ public class LoginResponse {
     private final String username;
     private final String email;
     private final String role;
+    private final boolean emailVerified;
     private final List<String> permissions;
 }
