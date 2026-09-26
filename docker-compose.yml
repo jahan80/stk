@@ -93,6 +93,30 @@ services:
         condition: service_healthy
 
   # ==================================================
+  # notif-service
+  # ==================================================
+  notif-service:
+    build:
+      context: .
+      dockerfile: notif-service/Dockerfile
+    container_name: starterkit-notif-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: sa
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ==================================================
   # api-gateway
   # ==================================================
   api-gateway:
