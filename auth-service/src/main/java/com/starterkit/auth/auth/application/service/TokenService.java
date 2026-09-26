@@ -1,10 +1,13 @@
 package com.starterkit.auth.auth.application.service;
 
+import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.domain.entity.RefreshToken;
 import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.RefreshTokenRepository;
+import com.starterkit.auth.shared.api.response.ApiCode;
 import com.starterkit.auth.shared.infrastructure.jwt.JwtProperties;
 import com.starterkit.auth.shared.infrastructure.jwt.JwtService;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +54,56 @@ public class TokenService {
                 refreshTokenValue,
                 jwtProperties.getAccessTokenTtlSeconds()
         );
+    }
+
+    @Transactional
+    public TokenPair refresh(String refreshTokenValue) {
+
+        String tokenHash = hashToken(refreshTokenValue);
+
+        RefreshToken existing = refreshTokenRepository
+                .findByTokenHash(tokenHash)
+                .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
+
+        if (existing.isRevoked()) {
+            throw new LoginException(ApiCode.INVALID_CREDENTIALS);
+        }
+
+        if (existing.getExpiresAt().isBefore(Instant.now())) {
+            throw new LoginException(ApiCode.INVALID_CREDENTIALS);
+        }
+
+        // Revoke old token
+        existing.setRevoked(true);
+        existing.setRevokedAt(Instant.now());
+
+        // Generate new pair
+        String newRefreshValue = generateRandomToken();
+        String newHash = hashToken(newRefreshValue);
+        String newJti = jwtService.generateRefreshTokenJti();
+
+        existing.setReplacedBy(newJti);
+        refreshTokenRepository.save(existing);
+
+        String newAccessToken = jwtService.generateAccessToken(existing.getUser());
+
+        RefreshToken newToken = new RefreshToken();
+        newToken.setUser(existing.getUser());
+        newToken.setTokenHash(newHash);
+        newToken.setJti(newJti);
+        newToken.setExpiresAt(Instant.now()
+                .plusSeconds(jwtProperties.getRefreshTokenTtlSeconds()));
+        refreshTokenRepository.save(newToken);
+
+        return new TokenPair(
+                newAccessToken,
+                newRefreshValue,
+                jwtProperties.getAccessTokenTtlSeconds()
+        );
+    }
+
+    public Claims getClaims(String accessToken) {
+        return jwtService.parse(accessToken);
     }
 
     private String generateRandomToken() {

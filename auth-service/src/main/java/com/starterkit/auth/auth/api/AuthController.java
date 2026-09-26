@@ -1,14 +1,15 @@
 package com.starterkit.auth.auth.api;
 
-import com.starterkit.auth.shared.api.response.ApiCode;
-import com.starterkit.auth.shared.api.response.ApiResponse;
-import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import com.starterkit.auth.auth.api.dto.LoginRequest;
 import com.starterkit.auth.auth.api.dto.LoginResponse;
+import com.starterkit.auth.auth.api.dto.RefreshTokenRequest;
 import com.starterkit.auth.auth.api.dto.RegisterRequest;
 import com.starterkit.auth.auth.api.dto.RegisterResponse;
 import com.starterkit.auth.auth.api.dto.UserResponse;
 import com.starterkit.auth.auth.application.service.AuthService;
+import com.starterkit.auth.shared.api.response.ApiCode;
+import com.starterkit.auth.shared.api.response.ApiResponse;
+import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import com.starterkit.auth.shared.infrastructure.jwt.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,18 +35,31 @@ public class AuthController {
     public ApiResponse<RegisterResponse> register(
             @Valid @RequestBody RegisterRequest request
     ) {
-        RegisterResponse userResponse = authService.register(request);
+        RegisterResponse response = authService.register(request);
 
         return responseFactory.success(
                 ApiCode.USER_REGISTERED,
-                userResponse
+                response
         );
     }
+
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(
             @Valid @RequestBody LoginRequest request
     ) {
         LoginResponse response = authService.login(request);
+
+        return responseFactory.success(
+                ApiCode.SUCCESS,
+                response
+        );
+    }
+
+    @PostMapping("/refresh")
+    public ApiResponse<LoginResponse> refresh(
+            @Valid @RequestBody RefreshTokenRequest request
+    ) {
+        LoginResponse response = authService.refresh(request);
 
         return responseFactory.success(
                 ApiCode.SUCCESS,

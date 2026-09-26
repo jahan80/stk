@@ -2,6 +2,7 @@ package com.starterkit.auth.auth.application.service;
 
 import com.starterkit.auth.auth.api.dto.LoginRequest;
 import com.starterkit.auth.auth.api.dto.LoginResponse;
+import com.starterkit.auth.auth.api.dto.RefreshTokenRequest;
 import com.starterkit.auth.auth.api.dto.RegisterRequest;
 import com.starterkit.auth.auth.api.dto.RegisterResponse;
 import com.starterkit.auth.auth.api.dto.UserResponse;
@@ -106,6 +107,29 @@ public class AuthService {
         }
 
         TokenService.TokenPair tokens = tokenService.generateTokens(user);
+
+        return LoginResponse.builder()
+                .accessToken(tokens.accessToken())
+                .refreshToken(tokens.refreshToken())
+                .tokenType("Bearer")
+                .expiresIn(tokens.expiresInSeconds())
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().getName())
+                .build();
+    }
+
+    @Transactional
+    public LoginResponse refresh(RefreshTokenRequest request) {
+
+        TokenService.TokenPair tokens = tokenService.refresh(request.getRefreshToken());
+
+        var claims = tokenService.getClaims(tokens.accessToken());
+        Long userId = Long.parseLong(claims.getSubject());
+
+        User user = userRepository.findByIdWithRole(userId)
+                .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
 
         return LoginResponse.builder()
                 .accessToken(tokens.accessToken())
