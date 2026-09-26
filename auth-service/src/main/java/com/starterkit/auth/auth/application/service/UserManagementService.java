@@ -3,16 +3,21 @@ package com.starterkit.auth.auth.application.service;
 import com.starterkit.auth.auth.api.dto.AssignRoleRequest;
 import com.starterkit.auth.auth.api.dto.UserDetailResponse;
 import com.starterkit.auth.auth.api.dto.UserSummaryResponse;
+import com.starterkit.auth.auth.application.exception.RoleNotFoundException;
+import com.starterkit.auth.auth.application.exception.SystemRoleProtectedException;
+import com.starterkit.auth.auth.application.exception.UserNotFoundException;
 import com.starterkit.auth.auth.domain.entity.Role;
 import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.RoleRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -29,23 +34,20 @@ public class UserManagementService {
 
     public UserDetailResponse getById(Long id) {
         User user = userRepository.findByIdWithRole(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found: " + id));
+                .orElseThrow(() -> new UserNotFoundException(id));
         return toDetail(user);
     }
 
     @Transactional
     public UserDetailResponse assignRole(Long userId, AssignRoleRequest request) {
         User user = userRepository.findByIdWithRole(userId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         Role role = roleRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + request.getRoleId()));
+                .orElseThrow(() -> new RoleNotFoundException(request.getRoleId()));
 
         if (role.getDeletedAt() != null) {
-            throw new IllegalStateException("Cannot assign deleted role");
+            throw new SystemRoleProtectedException("deleted role", "assigned");
         }
 
         user.setRole(role);
@@ -56,8 +58,7 @@ public class UserManagementService {
     @Transactional
     public UserDetailResponse setEnabled(Long userId, boolean enabled) {
         User user = userRepository.findByIdWithRole(userId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         user.setEnabled(enabled);
         User saved = userRepository.save(user);

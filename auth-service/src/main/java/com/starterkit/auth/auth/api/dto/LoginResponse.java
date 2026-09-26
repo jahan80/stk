@@ -3,6 +3,8 @@ package com.starterkit.auth.auth.api.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @Builder
 public class LoginResponse {
@@ -16,4 +18,5 @@ public class LoginResponse {
     private final String username;
     private final String email;
     private final String role;
+    private final List<String> permissions;
 }

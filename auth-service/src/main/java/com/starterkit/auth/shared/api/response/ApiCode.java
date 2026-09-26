@@ -43,6 +43,39 @@ public enum ApiCode {
             "Unknown user field"
     ),
 
+    USER_NOT_FOUND(
+            "AUTH-USER-005",
+            "User not found"
+    ),
+
+    // ========================================
+    // Role
+    // ========================================
+    ROLE_NOT_FOUND(
+            "AUTH-ROLE-001",
+            "Role not found"
+    ),
+
+    ROLE_ALREADY_EXISTS(
+            "AUTH-ROLE-002",
+            "Role already exists"
+    ),
+
+    ROLE_SYSTEM_PROTECTED(
+            "AUTH-ROLE-003",
+            "System roles cannot be modified or deleted"
+    ),
+
+    ROLE_IN_USE(
+            "AUTH-ROLE-004",
+            "Role is assigned to users and cannot be deleted"
+    ),
+
+    PERMISSION_NOT_FOUND(
+            "AUTH-PERM-001",
+            "Permission not found"
+    ),
+
     // ========================================
     // Login
     // ========================================

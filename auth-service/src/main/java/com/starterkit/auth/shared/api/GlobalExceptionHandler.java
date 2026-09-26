@@ -5,6 +5,12 @@ import com.starterkit.auth.shared.api.response.ApiResponse;
 import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import com.starterkit.auth.shared.api.response.ValidationErrorResponse;
 import com.starterkit.auth.auth.application.exception.LoginException;
+import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
+import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
+import com.starterkit.auth.auth.application.exception.RoleInUseException;
+import com.starterkit.auth.auth.application.exception.RoleNotFoundException;
+import com.starterkit.auth.auth.application.exception.SystemRoleProtectedException;
+import com.starterkit.auth.auth.application.exception.UserNotFoundException;
 import com.starterkit.auth.auth.application.exception.UserAlreadyExistsException;
 import com.starterkit.auth.configuration.exception.ConfigurationAlreadyExistsException;
 import com.starterkit.auth.configuration.exception.ConfigurationNotFoundException;
@@ -285,18 +291,51 @@ public class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(IllegalStateException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleIllegalState(IllegalStateException exception) {
-        log.warn("Illegal state: {}", exception.getMessage());
-        return responseFactory.error(ApiCode.INVALID_REQUEST);
+
+    // =========================================================
+    // 6. Role / Permission / User exceptions
+    // =========================================================
+
+    @ExceptionHandler(RoleNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleRoleNotFound(RoleNotFoundException exception) {
+        log.warn("Role not found: {}", exception.getRoleId());
+        return responseFactory.error(ApiCode.ROLE_NOT_FOUND);
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException exception) {
-        log.warn("Illegal argument: {}", exception.getMessage());
-        return responseFactory.error(ApiCode.INVALID_REQUEST);
+    @ExceptionHandler(RoleAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleRoleAlreadyExists(RoleAlreadyExistsException exception) {
+        log.warn("Role already exists: {}", exception.getRoleName());
+        return responseFactory.error(ApiCode.ROLE_ALREADY_EXISTS);
+    }
+
+    @ExceptionHandler(RoleInUseException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleRoleInUse(RoleInUseException exception) {
+        log.warn("Role in use: id={}, users={}", exception.getRoleId(), exception.getUserCount());
+        return responseFactory.error(ApiCode.ROLE_IN_USE);
+    }
+
+    @ExceptionHandler(SystemRoleProtectedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleSystemRoleProtected(SystemRoleProtectedException exception) {
+        log.warn("System role protected: name={}, action={}", exception.getRoleName(), exception.getAction());
+        return responseFactory.error(ApiCode.ROLE_SYSTEM_PROTECTED);
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleUserNotFound(UserNotFoundException exception) {
+        log.warn("User not found: {}", exception.getUserId());
+        return responseFactory.error(ApiCode.USER_NOT_FOUND);
+    }
+
+    @ExceptionHandler(PermissionNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handlePermissionNotFound(PermissionNotFoundException exception) {
+        log.warn("Permission not found: {}", exception.getPermissionId());
+        return responseFactory.error(ApiCode.PERMISSION_NOT_FOUND);
     }
 
 }

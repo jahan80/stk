@@ -3,12 +3,18 @@ package com.starterkit.auth.auth.application.service;
 import com.starterkit.auth.auth.api.dto.PermissionResponse;
 import com.starterkit.auth.auth.api.dto.RoleRequest;
 import com.starterkit.auth.auth.api.dto.RoleResponse;
+import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
+import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
+import com.starterkit.auth.auth.application.exception.RoleInUseException;
+import com.starterkit.auth.auth.application.exception.RoleNotFoundException;
+import com.starterkit.auth.auth.application.exception.SystemRoleProtectedException;
 import com.starterkit.auth.auth.domain.entity.Permission;
 import com.starterkit.auth.auth.domain.entity.Role;
 import com.starterkit.auth.auth.domain.repository.PermissionRepository;
 import com.starterkit.auth.auth.domain.repository.RoleRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -34,8 +41,7 @@ public class RoleService {
 
     public RoleResponse getById(Long id) {
         Role role = roleRepository.findByIdWithPermissions(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + id));
+                .orElseThrow(() -> new RoleNotFoundException(id));
         return toResponse(role);
     }
 
@@ -48,8 +54,7 @@ public class RoleService {
     @Transactional
     public RoleResponse create(RoleRequest request) {
         if (roleRepository.existsByName(request.getName())) {
-            throw new IllegalArgumentException(
-                    "Role already exists: " + request.getName());
+            throw new RoleAlreadyExistsException(request.getName());
         }
 
         Role role = new Role();
@@ -64,12 +69,10 @@ public class RoleService {
     @Transactional
     public RoleResponse update(Long id, RoleRequest request) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + id));
+                .orElseThrow(() -> new RoleNotFoundException(id));
 
         if (role.isSystemRole()) {
-            throw new IllegalStateException(
-                    "System roles cannot be modified: " + role.getName());
+            throw new SystemRoleProtectedException(role.getName(), "modified");
         }
 
         role.setDescription(request.getDescription());
@@ -81,18 +84,15 @@ public class RoleService {
     @Transactional
     public void delete(Long id) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + id));
+                .orElseThrow(() -> new RoleNotFoundException(id));
 
         if (role.isSystemRole()) {
-            throw new IllegalStateException(
-                    "System roles cannot be deleted: " + role.getName());
+            throw new SystemRoleProtectedException(role.getName(), "deleted");
         }
 
         long usersWithRole = userRepository.countByRole(role);
         if (usersWithRole > 0) {
-            throw new IllegalStateException(
-                    "Cannot delete role with " + usersWithRole + " assigned users");
+            throw new RoleInUseException(id, usersWithRole);
         }
 
         role.setDeletedAt(Instant.now());
@@ -102,13 +102,11 @@ public class RoleService {
     @Transactional
     public RoleResponse assignPermissions(Long roleId, Set<Long> permissionIds) {
         Role role = roleRepository.findByIdWithPermissions(roleId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Role not found: " + roleId));
+                .orElseThrow(() -> new RoleNotFoundException(roleId));
 
         Set<Permission> permissions = permissionIds.stream()
                 .map(pid -> permissionRepository.findById(pid)
-                        .orElseThrow(() -> new IllegalArgumentException(
-                                "Permission not found: " + pid)))
+                        .orElseThrow(() -> new PermissionNotFoundException(pid)))
                 .collect(Collectors.toSet());
 
         role.setPermissions(permissions);
