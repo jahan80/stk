@@ -4,6 +4,7 @@ import com.starterkit.auth.shared.api.response.ApiCode;
 import com.starterkit.auth.shared.api.response.ApiResponse;
 import com.starterkit.auth.shared.api.response.ApiResponseFactory;
 import com.starterkit.auth.shared.api.response.ValidationErrorResponse;
+import com.starterkit.auth.auth.application.exception.DeletedRoleException;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
 import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
@@ -336,6 +337,14 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handlePermissionNotFound(PermissionNotFoundException exception) {
         log.warn("Permission not found: {}", exception.getPermissionId());
         return responseFactory.error(ApiCode.PERMISSION_NOT_FOUND);
+    }
+
+
+    @ExceptionHandler(DeletedRoleException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleDeletedRole(DeletedRoleException exception) {
+        log.warn("Deleted role used: {}", exception.getRoleId());
+        return responseFactory.error(ApiCode.ROLE_DELETED);
     }
 
 }

@@ -25,5 +25,6 @@ logs/
 *.docx
 temp.txt
 
-# TODO (production): move JWT keys out of git
-# auth-service/src/main/resources/keys/*.pem
+# JWT keys - NEVER commit private key
+auth-service/src/main/resources/keys/*.pem
+!auth-service/src/main/resources/keys/.gitkeep

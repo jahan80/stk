@@ -9,6 +9,7 @@ import com.starterkit.auth.shared.infrastructure.jwt.JwtProperties;
 import com.starterkit.auth.shared.infrastructure.jwt.JwtService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TokenService {
@@ -65,12 +67,31 @@ public class TokenService {
                 .findByTokenHash(tokenHash)
                 .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
 
+        // =====================================================
+        // P0-5: Refresh Token Reuse Detection
+        // If token is already revoked, someone is reusing it.
+        // Revoke all tokens for this user (defense against theft).
+        // =====================================================
         if (existing.isRevoked()) {
+            log.warn("Refresh token reuse detected for user {}. Revoking all tokens.",
+                    existing.getUser().getId());
+            refreshTokenRepository.revokeAllByUserId(
+                    existing.getUser().getId(),
+                    Instant.now()
+            );
             throw new LoginException(ApiCode.INVALID_CREDENTIALS);
         }
 
         if (existing.getExpiresAt().isBefore(Instant.now())) {
             throw new LoginException(ApiCode.INVALID_CREDENTIALS);
+        }
+
+        // =====================================================
+        // P0-3: Check user is still enabled
+        // =====================================================
+        User user = existing.getUser();
+        if (!user.isEnabled()) {
+            throw new LoginException(ApiCode.USER_DISABLED);
         }
 
         // Revoke old token
@@ -85,10 +106,10 @@ public class TokenService {
         existing.setReplacedBy(newJti);
         refreshTokenRepository.save(existing);
 
-        String newAccessToken = jwtService.generateAccessToken(existing.getUser());
+        String newAccessToken = jwtService.generateAccessToken(user);
 
         RefreshToken newToken = new RefreshToken();
-        newToken.setUser(existing.getUser());
+        newToken.setUser(user);
         newToken.setTokenHash(newHash);
         newToken.setJti(newJti);
         newToken.setExpiresAt(Instant.now()

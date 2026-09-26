@@ -3,8 +3,8 @@ package com.starterkit.auth.auth.application.service;
 import com.starterkit.auth.auth.api.dto.AssignRoleRequest;
 import com.starterkit.auth.auth.api.dto.UserDetailResponse;
 import com.starterkit.auth.auth.api.dto.UserSummaryResponse;
+import com.starterkit.auth.auth.application.exception.DeletedRoleException;
 import com.starterkit.auth.auth.application.exception.RoleNotFoundException;
-import com.starterkit.auth.auth.application.exception.SystemRoleProtectedException;
 import com.starterkit.auth.auth.application.exception.UserNotFoundException;
 import com.starterkit.auth.auth.domain.entity.Role;
 import com.starterkit.auth.auth.domain.entity.User;
@@ -47,7 +47,7 @@ public class UserManagementService {
                 .orElseThrow(() -> new RoleNotFoundException(request.getRoleId()));
 
         if (role.getDeletedAt() != null) {
-            throw new SystemRoleProtectedException("deleted role", "assigned");
+            throw new DeletedRoleException(role.getId());
         }
 
         user.setRole(role);

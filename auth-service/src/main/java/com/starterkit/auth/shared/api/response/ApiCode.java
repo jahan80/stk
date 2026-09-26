@@ -71,6 +71,11 @@ public enum ApiCode {
             "Role is assigned to users and cannot be deleted"
     ),
 
+    ROLE_DELETED(
+            "AUTH-ROLE-005",
+            "Role has been deleted and cannot be used"
+    ),
+
     PERMISSION_NOT_FOUND(
             "AUTH-PERM-001",
             "Permission not found"
