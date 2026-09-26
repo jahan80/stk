@@ -11,14 +11,14 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AuthEventListener {
+public class GatewayEventListener {
 
     private final AuditEventService auditEventService;
 
-    @RabbitListener(queues = RabbitMqConfig.AUTH_QUEUE)
-    public void onAuthEvent(AuthEventMessage message) {
+    @RabbitListener(queues = RabbitMqConfig.GATEWAY_QUEUE)
+    public void onGatewayEvent(AuthEventMessage message) {
 
-        log.debug("Received auth event: type={}, eventId={}, traceId={}",
+        log.debug("Received gateway event: type={}, eventId={}, traceId={}",
                 message.getEventType(),
                 message.getEventId(),
                 message.getTraceId());
@@ -26,7 +26,7 @@ public class AuthEventListener {
         try {
             auditEventService.saveFromMessage(message);
         } catch (Exception ex) {
-            log.error("Failed to process auth event: eventId={}, type={}",
+            log.error("Failed to process gateway event: eventId={}, type={}",
                     message.getEventId(),
                     message.getEventType(),
                     ex);
