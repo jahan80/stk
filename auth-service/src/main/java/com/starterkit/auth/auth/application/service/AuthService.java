@@ -6,6 +6,10 @@ import com.starterkit.auth.auth.api.dto.RefreshTokenRequest;
 import com.starterkit.auth.auth.api.dto.RegisterRequest;
 import com.starterkit.auth.auth.api.dto.RegisterResponse;
 import com.starterkit.auth.auth.api.dto.UserResponse;
+import com.starterkit.auth.auth.application.event.AuthEventPublisher;
+import com.starterkit.auth.auth.application.event.UserLoggedInEvent;
+import com.starterkit.auth.auth.application.event.UserLoggedOutEvent;
+import com.starterkit.auth.auth.application.event.UserRegisteredEvent;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator.IdentifierType;
@@ -36,6 +40,7 @@ public class AuthService {
     private final LoginConfigurationValidator loginConfigurationValidator;
     private final TokenService tokenService;
     private final UserCreationService userCreationService;
+    private final AuthEventPublisher eventPublisher;
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -58,6 +63,12 @@ public class AuthService {
                         defaultRole.getId()
                 )
         );
+
+        eventPublisher.publish(new UserRegisteredEvent(
+                savedUser.getId(),
+                savedUser.getUsername(),
+                savedUser.getEmail()
+        ));
 
         return RegisterResponse.builder()
                 .id(savedUser.getId())
@@ -97,6 +108,12 @@ public class AuthService {
 
         TokenService.TokenPair tokens = tokenService.generateTokens(user);
 
+        eventPublisher.publish(new UserLoggedInEvent(
+                user.getId(),
+                user.getUsername(),
+                request.getIdentifier()
+        ));
+
         return buildLoginResponse(user, tokens);
     }
 
@@ -134,7 +151,16 @@ public class AuthService {
 
     @Transactional
     public void logout(RefreshTokenRequest request) {
+        User user = tokenService.findUserByRefreshToken(request.getRefreshToken());
+
         tokenService.logout(request.getRefreshToken());
+
+        if (user != null) {
+            eventPublisher.publish(new UserLoggedOutEvent(
+                    user.getId(),
+                    user.getUsername()
+            ));
+        }
     }
 
     private LoginResponse buildLoginResponse(User user, TokenService.TokenPair tokens) {

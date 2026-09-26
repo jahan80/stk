@@ -166,4 +166,13 @@ public class TokenService {
         }
     }
 
+
+    @Transactional(readOnly = true)
+    public User findUserByRefreshToken(String refreshTokenValue) {
+        String tokenHash = hashToken(refreshTokenValue);
+        return refreshTokenRepository.findByTokenHash(tokenHash)
+                .map(RefreshToken::getUser)
+                .orElse(null);
+    }
+
 }
