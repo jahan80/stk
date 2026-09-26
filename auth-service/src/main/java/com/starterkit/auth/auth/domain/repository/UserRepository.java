@@ -20,9 +20,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     long countByRole(Role role);
 
-    @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.id = :id")
+    @Query("SELECT DISTINCT u FROM User u " +
+           "JOIN FETCH u.role r " +
+           "LEFT JOIN FETCH r.permissions " +
+           "WHERE u.id = :id")
     Optional<User> findByIdWithRole(@Param("id") Long id);
 
-    @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.username = :username")
+    @Query("SELECT DISTINCT u FROM User u " +
+           "JOIN FETCH u.role r " +
+           "LEFT JOIN FETCH r.permissions " +
+           "WHERE u.username = :username")
     Optional<User> findByUsernameWithRole(@Param("username") String username);
 }
