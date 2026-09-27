@@ -28,3 +28,19 @@ temp.txt
 # JWT keys - NEVER commit private key
 auth-service/src/main/resources/keys/*.pem
 !auth-service/src/main/resources/keys/.gitkeep
+
+# ============================================
+# Added: 2026-09-27 (SMTP integration)
+# ============================================
+# Secrets (never commit!)
+.env
+.env.*
+!.env.example
+
+# Backups
+*.bak
+*.bak.*
+.dockerignore.bak
+
+# JWT keys (private key MUST NOT be committed)
+**/jwt-private.pem
