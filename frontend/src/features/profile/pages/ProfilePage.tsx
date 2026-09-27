@@ -1,4 +1,3 @@
-import { useAuthStore } from "@/store/auth"
 import { useCurrentUser } from "@/features/auth/hooks"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -6,13 +5,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CheckCircle2, XCircle, Mail, Smartphone, User as UserIcon, Shield, Calendar, ExternalLink } from "lucide-react"
-import { getInitials, formatDate } from "@/lib/utils"
-import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import { PreferencesCard } from "../components/PreferencesCard"
+import { CheckCircle2, XCircle, Mail, Smartphone, User as UserIcon, Shield, ExternalLink } from "lucide-react"
+import { getInitials } from "@/lib/utils"
+import { Link } from "react-router-dom"
 
 export function ProfilePage() {
-  const storeUser = useAuthStore((s) => s.user)
   const { data, isLoading } = useCurrentUser()
   const user = data?.data
 
@@ -25,9 +24,7 @@ export function ProfilePage() {
     )
   }
 
-  if (!user) {
-    return <div>No user data</div>
-  }
+  if (!user) return <div>No user data</div>
 
   return (
     <div className="space-y-6">
@@ -68,6 +65,7 @@ export function ProfilePage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -132,6 +130,10 @@ export function ProfilePage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="preferences" className="space-y-4">
+          <PreferencesCard />
+        </TabsContent>
       </Tabs>
     </div>
   )
@@ -150,10 +152,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 }
 
 function VerificationRow({
-  icon: Icon,
-  label,
-  value,
-  verified,
+  icon: Icon, label, value, verified,
 }: {
   icon: React.ElementType
   label: string

@@ -1,6 +1,6 @@
-import { Menu, Moon, Sun } from "lucide-react"
+import { Menu, Moon, Sun, Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useEffect, useState } from "react"
+import { usePreferencesStore } from "@/store/preferences"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -8,14 +8,15 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, title }: HeaderProps) {
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    return (localStorage.getItem("theme") as "light" | "dark") || "light"
-  })
+  const { theme, setTheme } = usePreferencesStore()
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-    localStorage.setItem("theme", theme)
-  }, [theme])
+  const nextTheme = () => {
+    const order = ["light", "dark", "system"] as const
+    const idx = order.indexOf(theme)
+    setTheme(order[(idx + 1) % order.length])
+  }
+
+  const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor
 
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-card px-6">
@@ -34,13 +35,10 @@ export function Header({ onMenuClick, title }: HeaderProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          onClick={nextTheme}
+          title={`Theme: ${theme}`}
         >
-          {theme === "dark" ? (
-            <Sun className="h-5 w-5" />
-          ) : (
-            <Moon className="h-5 w-5" />
-          )}
+          <ThemeIcon className="h-5 w-5" />
         </Button>
       </div>
     </header>
