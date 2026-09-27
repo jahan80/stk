@@ -127,6 +127,9 @@ services:
     ports:
       - "8080:8080"
     environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: sa
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: admin
