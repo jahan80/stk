@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -19,10 +20,6 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * Verify JWT for gateway admin endpoints (/gateway/**).
- * Other routes are NOT blocked here - they are forwarded to services.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -39,12 +36,10 @@ public class JwtAuthFilter implements WebFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        // Only verify for /gateway/** endpoints
         if (!path.startsWith(ADMIN_PATH_PREFIX)) {
             return chain.filter(exchange);
         }
 
-        // Allow /gateway/rate-limits/active without auth (internal)
         if (path.equals("/gateway/rate-limits/active")) {
             return chain.filter(exchange);
         }
@@ -67,7 +62,6 @@ public class JwtAuthFilter implements WebFilter, Ordered {
                 return forbidden(exchange, "Admin role required");
             }
 
-            // Add user info to headers for downstream
             ServerHttpRequest mutated = request.mutate()
                     .header("X-User-Id", String.valueOf(jwtService.getUserId(claims)))
                     .header("X-User-Name", jwtService.getUsername(claims))
@@ -83,7 +77,7 @@ public class JwtAuthFilter implements WebFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE + 10;
+        return Ordered.HIGHEST_PRECEDENCE + 100;
     }
 
     private String extractToken(ServerHttpRequest request) {
@@ -108,6 +102,13 @@ public class JwtAuthFilter implements WebFilter, Ordered {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        // CORS header for error responses
+        String origin = exchange.getRequest().getHeaders().getOrigin();
+        if (origin != null) {
+            response.getHeaders().set(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+            response.getHeaders().set(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        }
 
         DataBuffer buffer = response.bufferFactory()
                 .wrap(body.getBytes(StandardCharsets.UTF_8));
