@@ -11,6 +11,7 @@ import com.starterkit.auth.auth.application.event.UserLoggedInEvent;
 import com.starterkit.auth.auth.application.event.UserLoggedOutEvent;
 import com.starterkit.auth.auth.application.event.UserRegisteredEvent;
 import com.starterkit.auth.auth.application.exception.EmailNotVerifiedException;
+import com.starterkit.auth.auth.application.exception.MobileNotVerifiedException;
 import com.starterkit.auth.configuration.application.ConfigurationService;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.validator.LoginConfigurationValidator;
@@ -42,6 +43,7 @@ public class AuthService {
     private final LoginConfigurationValidator loginConfigurationValidator;
     private final TokenService tokenService;
     private final EmailVerificationService emailVerificationService;
+    private final MobileVerificationService mobileVerificationService;
     private final ConfigurationService configurationService;
     private final UserCreationService userCreationService;
     private final AuthEventPublisher eventPublisher;
@@ -85,6 +87,17 @@ public class AuthService {
             emailVerificationService.sendVerificationCode(savedUser);
         }
 
+        // Send mobile verification code (only if required)
+        boolean mobileVerificationRequired = false;
+        try {
+            mobileVerificationRequired = configurationService.getBoolean(
+                    "AUTH.REGISTER.MOBILE.VERIFICATION.REQUIRED");
+        } catch (Exception ignored) {}
+
+        if (mobileVerificationRequired && savedUser.getMobileNumber() != null) {
+            mobileVerificationService.sendVerificationCode(savedUser);
+        }
+
         return RegisterResponse.builder()
                 .id(savedUser.getId())
                 .username(savedUser.getUsername())
@@ -94,6 +107,7 @@ public class AuthService {
                 .lastName(savedUser.getLastName())
                 .role(savedUser.getRole().getName())
                 .emailVerified(savedUser.isEmailVerified())
+                .mobileVerified(savedUser.isMobileVerified())
                 .build();
     }
 
@@ -209,6 +223,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole().getName())
                 .emailVerified(user.isEmailVerified())
+                .mobileVerified(user.isMobileVerified())
                 .permissions(permissions)
                 .build();
     }

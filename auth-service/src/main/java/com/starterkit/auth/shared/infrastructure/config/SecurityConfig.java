@@ -64,7 +64,11 @@ public class SecurityConfig {
                                 "/auth/refresh",
                                 "/auth/logout",
                                 "/auth/email/verify",
-                                "/auth/email/resend-verification"
+                                "/auth/email/resend-verification",
+                                "/auth/mobile/verify",
+                                "/auth/mobile/resend-verification",
+                                "/auth/password/forgot",
+                                "/auth/password/reset"
                         ).permitAll()
 
                         .requestMatchers(

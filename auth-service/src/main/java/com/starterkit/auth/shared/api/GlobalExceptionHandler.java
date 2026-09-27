@@ -7,7 +7,12 @@ import com.starterkit.auth.shared.api.response.ValidationErrorResponse;
 import com.starterkit.auth.auth.application.exception.DeletedRoleException;
 import com.starterkit.auth.auth.application.exception.EmailAlreadyVerifiedException;
 import com.starterkit.auth.auth.application.exception.EmailNotVerifiedException;
+import com.starterkit.auth.auth.application.exception.InvalidMobileVerificationCodeException;
+import com.starterkit.auth.auth.application.exception.InvalidPasswordResetCodeException;
+import com.starterkit.auth.auth.application.exception.PasswordResetNotAllowedException;
 import com.starterkit.auth.auth.application.exception.InvalidVerificationCodeException;
+import com.starterkit.auth.auth.application.exception.MobileAlreadyVerifiedException;
+import com.starterkit.auth.auth.application.exception.MobileNotVerifiedException;
 import com.starterkit.auth.auth.application.exception.LoginException;
 import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
 import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
@@ -374,6 +379,51 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleEmailAlreadyVerified(EmailAlreadyVerifiedException exception) {
         log.warn("Email already verified: {}", exception.getEmail());
         return responseFactory.error(ApiCode.EMAIL_ALREADY_VERIFIED);
+    }
+
+
+    // =========================================================
+    // 8. Mobile Verification exceptions
+    // =========================================================
+
+    @ExceptionHandler(MobileNotVerifiedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleMobileNotVerified(MobileNotVerifiedException exception) {
+        log.warn("Mobile not verified: {}", exception.getMobile());
+        return responseFactory.error(ApiCode.MOBILE_NOT_VERIFIED);
+    }
+
+    @ExceptionHandler(InvalidMobileVerificationCodeException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleInvalidMobileCode(InvalidMobileVerificationCodeException exception) {
+        log.warn("Invalid mobile verification code");
+        return responseFactory.error(ApiCode.INVALID_MOBILE_VERIFICATION_CODE);
+    }
+
+    @ExceptionHandler(MobileAlreadyVerifiedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleMobileAlreadyVerified(MobileAlreadyVerifiedException exception) {
+        log.warn("Mobile already verified: {}", exception.getMobile());
+        return responseFactory.error(ApiCode.MOBILE_ALREADY_VERIFIED);
+    }
+
+
+    // =========================================================
+    // 9. Password Reset exceptions
+    // =========================================================
+
+    @ExceptionHandler(InvalidPasswordResetCodeException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleInvalidPasswordResetCode(InvalidPasswordResetCodeException exception) {
+        log.warn("Invalid password reset code");
+        return responseFactory.error(ApiCode.INVALID_PASSWORD_RESET_CODE);
+    }
+
+    @ExceptionHandler(PasswordResetNotAllowedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handlePasswordResetNotAllowed(PasswordResetNotAllowedException exception) {
+        log.warn("Password reset not allowed");
+        return responseFactory.error(ApiCode.PASSWORD_RESET_NOT_ALLOWED);
     }
 
 }

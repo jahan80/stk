@@ -88,6 +88,7 @@ public class UserManagementService {
                 .role(user.getRole().getName())
                 .enabled(user.isEnabled())
                 .emailVerified(user.isEmailVerified())
+                .mobileVerified(user.isMobileVerified())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();

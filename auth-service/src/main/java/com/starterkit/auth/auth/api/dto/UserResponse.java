@@ -16,4 +16,5 @@ public class UserResponse {
     private final String role;
     private final boolean enabled;
     private final boolean emailVerified;
+    private final boolean mobileVerified;
 }

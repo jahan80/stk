@@ -14,4 +14,5 @@ public class RegisterResponse {
     private final String lastName;
     private final String role;
     private final boolean emailVerified;
+    private final boolean mobileVerified;
 }

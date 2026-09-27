@@ -19,5 +19,6 @@ public class LoginResponse {
     private final String email;
     private final String role;
     private final boolean emailVerified;
+    private final boolean mobileVerified;
     private final List<String> permissions;
 }

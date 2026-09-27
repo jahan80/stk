@@ -119,6 +119,31 @@ public enum ApiCode {
             "Email already verified"
     ),
 
+    MOBILE_NOT_VERIFIED(
+            "AUTH-LOGIN-006",
+            "Mobile not verified"
+    ),
+
+    INVALID_MOBILE_VERIFICATION_CODE(
+            "AUTH-MVERIFY-001",
+            "Invalid or expired mobile verification code"
+    ),
+
+    MOBILE_ALREADY_VERIFIED(
+            "AUTH-MVERIFY-002",
+            "Mobile already verified"
+    ),
+
+    INVALID_PASSWORD_RESET_CODE(
+            "AUTH-PWRESET-001",
+            "Invalid or expired password reset code"
+    ),
+
+    PASSWORD_RESET_NOT_ALLOWED(
+            "AUTH-PWRESET-002",
+            "Password reset is not allowed"
+    ),
+
     // ========================================
     // Configuration
     // ========================================
