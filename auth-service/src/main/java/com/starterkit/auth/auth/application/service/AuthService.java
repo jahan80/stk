@@ -191,6 +191,8 @@ public class AuthService {
                 .lastName(user.getLastName())
                 .role(user.getRole().getName())
                 .enabled(user.isEnabled())
+                .emailVerified(user.isEmailVerified())
+                .mobileVerified(user.isMobileVerified())
                 .build();
     }
 
