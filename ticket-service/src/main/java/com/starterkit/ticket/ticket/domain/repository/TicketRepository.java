@@ -47,6 +47,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     Page<Ticket> findByPriorityOrderByCreatedAtDesc(TicketPriority priority, Pageable pageable);
     Page<Ticket> findByGroupIdOrderByCreatedAtDesc(Long groupId, Pageable pageable);
     Page<Ticket> findByAssignedToIsNullOrderByCreatedAtDesc(Pageable pageable);
+    Page<Ticket> findByAssignedToIsNotNullOrderByCreatedAtDesc(Pageable pageable);
 
     // ====== Counters ======
 

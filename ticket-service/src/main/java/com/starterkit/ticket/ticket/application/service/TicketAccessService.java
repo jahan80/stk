@@ -14,8 +14,8 @@ import java.util.List;
  * Rules:
  *  - Admin: sees everything
  *  - Owner (created_by): sees own ticket
- *  - Assignee: sees assigned ticket
- *  - Group member: sees tickets of their groups
+ *  - Assignee: sees + can act on assigned ticket
+ *  - Group member: sees + can act on tickets of their groups
  *  - Otherwise: denied
  */
 @Service
@@ -36,9 +36,10 @@ public class TicketAccessService {
         return false;
     }
 
-    /** Can this user perform agent actions (assign, status, etc.)? */
+    /** Can this user perform agent actions (assign, status, comment)? */
     public boolean canAct(UserPrincipal user, Ticket ticket) {
         if (user.isAdmin()) return true;
+        if (ticket.isAssignedTo(user.getId())) return true;      // ← FIX: assignee can act
         if (ticket.getGroupId() != null &&
                 groupMemberRepo.existsByGroupIdAndUserId(ticket.getGroupId(), user.getId())) {
             return true;

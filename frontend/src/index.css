@@ -97,36 +97,3 @@
 
 
 /* ============================================ */
-/* Accessibility: Reduced Motion                */
-/* ============================================ */
-.reduce-motion *,
-.reduce-motion *::before,
-.reduce-motion *::after {
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
-  scroll-behavior: auto !important;
-}
-
-
-/* ============================================ */
-/* Compact Mode                                 */
-/* ============================================ */
-.compact .card,
-.compact [class*="CardContent"],
-.compact [class*="CardHeader"] {
-  padding: 0.75rem !important;
-}
-
-.compact .space-y-6 > * + * {
-  margin-top: 1rem !important;
-}
-
-.compact .space-y-4 > * + * {
-  margin-top: 0.5rem !important;
-}
-
-.compact table td,
-.compact table th {
-  padding: 0.5rem !important;
-}

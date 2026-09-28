@@ -27,12 +27,24 @@ public class UserPrincipal implements UserDetails {
         this.email = email;
         this.roles = roles != null ? roles : List.of();
         this.permissions = permissions != null ? permissions : List.of();
-        this.isAdmin = this.roles.contains("ADMIN");
+
+        // Admin if role=ADMIN OR wildcard permission
+        this.isAdmin = this.roles.contains("ADMIN")
+                || this.permissions.contains("*")
+                || this.permissions.contains("admin:*");
 
         List<GrantedAuthority> auths = new ArrayList<>();
         this.roles.forEach(r -> auths.add(new SimpleGrantedAuthority("ROLE_" + r)));
         this.permissions.forEach(p -> auths.add(new SimpleGrantedAuthority(p)));
         this.authorities = auths;
+    }
+
+    public boolean hasRole(String role) {
+        return this.roles.contains(role);
+    }
+
+    public boolean hasPermission(String permission) {
+        return this.permissions.contains(permission);
     }
 
     @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }

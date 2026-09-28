@@ -74,6 +74,14 @@ public class TicketService {
                 category.getName()
         ));
 
+        // Notify admins if config enabled
+        boolean notifyAdmins = config.getBoolean("TICKET.NOTIFY.ADMIN.ON_CREATE", true);
+        if (notifyAdmins) {
+            // We don't have admin user IDs in ticket-service.
+            // For now, notification is via event + audit. Admin in-app notification
+            // will be added in a later phase (needs auth-service call).
+        }
+
         return toResponse(saved, true);
     }
 
@@ -86,12 +94,15 @@ public class TicketService {
                                              TicketPriority priority,
                                              Long groupId,
                                              boolean unassignedOnly,
+                                             boolean assignedOnly,
                                              Pageable pageable) {
         Page<Ticket> page;
 
         if (user.isAdmin()) {
             if (unassignedOnly) {
                 page = ticketRepo.findByAssignedToIsNullOrderByCreatedAtDesc(pageable);
+            } else if (assignedOnly) {
+                page = ticketRepo.findByAssignedToIsNotNullOrderByCreatedAtDesc(pageable);
             } else if (groupId != null) {
                 page = ticketRepo.findByGroupIdOrderByCreatedAtDesc(groupId, pageable);
             } else if (status != null) {
@@ -115,11 +126,18 @@ public class TicketService {
         var grps = groupRepo.findAllById(grpIds).stream()
                 .collect(java.util.stream.Collectors.toMap(TicketGroup::getId, g -> g));
 
-        return page.map(t -> mapper.toSummary(
-                t,
-                cats.get(t.getCategoryId()),
-                t.getGroupId() != null ? grps.get(t.getGroupId()) : null
-        ));
+        // Determine viewer role for each ticket
+        return page.map(t -> {
+            String role = "USER";
+            if (user.isAdmin()) role = "ADMIN";
+            else if (access.canAct(user, t)) role = "AGENT";
+            return mapper.toSummary(
+                    t,
+                    cats.get(t.getCategoryId()),
+                    t.getGroupId() != null ? grps.get(t.getGroupId()) : null,
+                    role
+            );
+        });
     }
 
     // =====================================================

@@ -164,6 +164,9 @@ public class LoggingFilter implements GlobalFilter, Ordered {
     private String resolveTargetService(String path) {
         if (path.startsWith("/auth/")) return "auth-service";
         if (path.startsWith("/audit/")) return "audit-service";
+        if (path.startsWith("/notify/")) return "notif-service";
+        if (path.startsWith("/tickets/")) return "ticket-service";
+        if (path.startsWith("/gateway/")) return "api-gateway";
         return "unknown";
     }
 }

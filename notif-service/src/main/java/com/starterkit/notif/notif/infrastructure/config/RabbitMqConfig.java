@@ -19,6 +19,11 @@ public class RabbitMqConfig {
     public static final String NOTIF_QUEUE = "notif.events";
     public static final String NOTIF_ROUTING = "notif.#";
 
+    // Dead Letter Exchange
+    public static final String DLX_EXCHANGE = "starterkit.dlx";
+    public static final String DLQ_QUEUE = "notif.dlq";
+    public static final String DLQ_ROUTING = "notif.dead";
+
     @Bean
     public TopicExchange eventsExchange() {
         return new TopicExchange(EXCHANGE, true, false);
@@ -53,4 +58,24 @@ public class RabbitMqConfig {
         template.setMessageConverter(messageConverter);
         return template;
     }
+
+    // ==================== DEAD LETTER EXCHANGE ====================
+
+    @Bean
+    public TopicExchange dlxExchange() {
+        return new TopicExchange(DLX_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Queue notifDlq() {
+        return QueueBuilder.durable(DLQ_QUEUE).build();
+    }
+
+    @Bean
+    public Binding notifDlqBinding(Queue notifDlq, TopicExchange dlxExchange) {
+        return BindingBuilder.bind(notifDlq)
+                .to(dlxExchange)
+                .with(DLQ_ROUTING);
+    }
+
 }

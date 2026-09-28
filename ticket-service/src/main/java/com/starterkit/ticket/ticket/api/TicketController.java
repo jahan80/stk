@@ -38,11 +38,12 @@ public class TicketController {
             @RequestParam(required = false) TicketPriority priority,
             @RequestParam(required = false) Long groupId,
             @RequestParam(required = false, defaultValue = "false") boolean unassignedOnly,
+            @RequestParam(required = false, defaultValue = "false") boolean assignedOnly,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         return responseFactory.success(ApiCode.SUCCESS,
-                ticketService.list(user, status, priority, groupId, unassignedOnly,
+                ticketService.list(user, status, priority, groupId, unassignedOnly, assignedOnly,
                         PageRequest.of(page, size)));
     }
 

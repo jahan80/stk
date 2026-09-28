@@ -7,14 +7,17 @@ import com.starterkit.ticket.ticket.domain.entity.Ticket;
 import com.starterkit.ticket.ticket.domain.entity.TicketCategory;
 import com.starterkit.ticket.ticket.domain.entity.TicketComment;
 import com.starterkit.ticket.ticket.domain.entity.TicketGroup;
+import com.starterkit.ticket.ticket.domain.entity.TicketStatus;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
 
 @Component
 public class TicketMapper {
 
-    public TicketSummaryResponse toSummary(Ticket t, TicketCategory cat, TicketGroup grp) {
+    public TicketSummaryResponse toSummary(Ticket t, TicketCategory cat, TicketGroup grp,
+                                            String viewerRole) {
         return TicketSummaryResponse.builder()
                 .id(t.getId())
                 .ticketNumber(t.getTicketNumber())
@@ -30,6 +33,7 @@ public class TicketMapper {
                 .assignedTo(t.getAssignedTo())
                 .createdAt(t.getCreatedAt())
                 .updatedAt(t.getUpdatedAt())
+                .viewerRole(viewerRole)
                 .build();
     }
 
@@ -58,6 +62,7 @@ public class TicketMapper {
                 .closedAt(t.getClosedAt())
                 .slaDeadline(t.getSlaDeadline())
                 .viewerRole(viewerRole)
+                .slaBreached(isSlaBreached(t))
                 .commentCount(commentResponses.size())
                 .comments(commentResponses)
                 .build();
@@ -72,5 +77,13 @@ public class TicketMapper {
                 .body(c.getBody())
                 .createdAt(c.getCreatedAt())
                 .build();
+    }
+
+    private boolean isSlaBreached(Ticket t) {
+        if (t.getSlaDeadline() == null) return false;
+        if (t.getStatus() == TicketStatus.CLOSED || t.getStatus() == TicketStatus.RESOLVED) {
+            return false;
+        }
+        return Instant.now().isAfter(t.getSlaDeadline());
     }
 }

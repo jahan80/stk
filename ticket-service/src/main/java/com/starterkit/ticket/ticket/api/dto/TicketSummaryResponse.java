@@ -21,4 +21,5 @@ public class TicketSummaryResponse {
     private final Long assignedTo;
     private final Instant createdAt;
     private final Instant updatedAt;
+    private final String viewerRole;   // ADMIN, AGENT, USER
 }
