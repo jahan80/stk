@@ -22,6 +22,10 @@ import { SystemSettingsPage } from "@/features/admin/pages/SystemSettingsPage"
 import { AuditLogPage } from "@/features/audit/pages/AuditLogPage"
 import { RateLimitsPage } from "@/features/rate-limits/pages/RateLimitsPage"
 import { NotificationsPage } from "@/features/notif/pages/NotificationsPage"
+import { TicketListPage } from "@/features/tickets/pages/TicketListPage"
+import { TicketDetailPage } from "@/features/tickets/pages/TicketDetailPage"
+import { CreateTicketPage } from "@/features/tickets/pages/CreateTicketPage"
+import { TicketSettingsPage } from "@/features/tickets/pages/TicketSettingsPage"
 
 export const router = createBrowserRouter([
   // Public auth routes
@@ -45,6 +49,12 @@ export const router = createBrowserRouter([
           { path: "/dashboard", element: <DashboardPage /> },
           { path: "/profile", element: <ProfilePage /> },
           { path: "/notifications", element: <NotificationsPage /> },
+
+          // Ticket routes
+          { path: "/tickets", element: <TicketListPage /> },
+          { path: "/tickets/new", element: <CreateTicketPage /> },
+          { path: "/tickets/:id", element: <TicketDetailPage /> },
+          { path: "/tickets/settings", element: <TicketSettingsPage /> },
 
           // Admin routes
           {

@@ -59,6 +59,9 @@ public class Ticket {
     @Column(name = "closed_at")
     private Instant closedAt;
 
+    @Column(name = "sla_deadline")
+    private Instant slaDeadline;
+
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();

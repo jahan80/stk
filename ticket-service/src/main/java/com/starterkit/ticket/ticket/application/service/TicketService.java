@@ -2,6 +2,7 @@ package com.starterkit.ticket.ticket.application.service;
 
 import com.starterkit.ticket.shared.infrastructure.jwt.UserPrincipal;
 import com.starterkit.ticket.ticket.api.dto.*;
+import com.starterkit.ticket.ticket.application.event.*;
 import com.starterkit.ticket.ticket.application.exception.*;
 import com.starterkit.ticket.ticket.application.mapper.TicketMapper;
 import com.starterkit.ticket.ticket.domain.entity.*;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -29,6 +31,11 @@ public class TicketService {
     private final TicketNumberGenerator numberGen;
     private final TicketAccessService access;
     private final TicketMapper mapper;
+    private final TicketConfigurationService config;
+    private final TicketEventPublisher eventPublisher;
+    private final NotificationService notificationService;
+    private final MentionService mentionService;
+    private final TicketGroupMemberRepository groupMemberRepo;
 
     // =====================================================
     // CREATE
@@ -36,6 +43,10 @@ public class TicketService {
 
     @Transactional
     public TicketResponse create(UserPrincipal user, CreateTicketRequest req) {
+        if (!config.getBoolean("TICKET.CREATE.ENABLED", true)) {
+            throw new IllegalStateException("Ticket creation is disabled");
+        }
+
         TicketCategory category = categoryRepo.findById(req.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException(req.getCategoryId()));
 
@@ -47,15 +58,27 @@ public class TicketService {
         t.setPriority(req.getPriority() != null ? req.getPriority() : TicketPriority.MEDIUM);
         t.setStatus(TicketStatus.OPEN);
         t.setCreatedBy(user.getId());
+        t.setSlaDeadline(computeSlaDeadline(t.getPriority()));
 
         Ticket saved = ticketRepo.save(t);
         log.info("Ticket created: {} by user={}", saved.getTicketNumber(), user.getId());
+
+        // Publish event
+        eventPublisher.publish(new TicketCreatedEvent(
+                saved.getId(),
+                saved.getTicketNumber(),
+                saved.getTitle(),
+                user.getId(),
+                user.getEmail(),
+                saved.getPriority().name(),
+                category.getName()
+        ));
 
         return toResponse(saved, true);
     }
 
     // =====================================================
-    // LIST (access-aware)
+    // LIST
     // =====================================================
 
     public Page<TicketSummaryResponse> list(UserPrincipal user,
@@ -67,7 +90,6 @@ public class TicketService {
         Page<Ticket> page;
 
         if (user.isAdmin()) {
-            // Admin: all tickets with optional filters
             if (unassignedOnly) {
                 page = ticketRepo.findByAssignedToIsNullOrderByCreatedAtDesc(pageable);
             } else if (groupId != null) {
@@ -80,15 +102,10 @@ public class TicketService {
                 page = ticketRepo.findAllByOrderByCreatedAtDesc(pageable);
             }
         } else {
-            // Non-admin: own + assigned + group tickets
             List<Long> groupIds = access.getUserGroupIds(user.getId());
-            page = ticketRepo.findVisibleToUser(user.getId(), groupIds, pageable);
-
-            // Apply client-side filters (simpler than many queries)
-            // Note: for scale, we'd push these into the query
+            page = ticketRepo.findVisibleToUser(user.getId(), groupIds, status, priority, pageable);
         }
 
-        // Fetch related entities for mapping
         List<Long> catIds = page.getContent().stream().map(Ticket::getCategoryId).distinct().toList();
         List<Long> grpIds = page.getContent().stream()
                 .filter(t -> t.getGroupId() != null).map(Ticket::getGroupId).distinct().toList();
@@ -112,12 +129,8 @@ public class TicketService {
     public TicketResponse get(UserPrincipal user, Long id) {
         Ticket t = ticketRepo.findById(id)
                 .orElseThrow(() -> new TicketNotFoundException(id));
-
-        if (!access.canView(user, t)) {
-            throw new TicketAccessDeniedException();
-        }
-
-        return toResponse(t, true);
+        if (!access.canView(user, t)) throw new TicketAccessDeniedException();
+        return toResponse(t, true, user);
     }
 
     // =====================================================
@@ -137,9 +150,16 @@ public class TicketService {
             throw new IllegalStateException("Ticket already closed");
         }
 
+        TicketStatus old = t.getStatus();
         t.setStatus(TicketStatus.CLOSED);
         t.setClosedAt(Instant.now());
         Ticket saved = ticketRepo.save(t);
+
+        eventPublisher.publish(new TicketStatusChangedEvent(
+                saved.getId(), saved.getTicketNumber(),
+                old.name(), "CLOSED", user.getId(), saved.getCreatedBy()));
+
+        notifyStatusChange(saved, old, TicketStatus.CLOSED, user.getId());
         return toResponse(saved, true);
     }
 
@@ -152,9 +172,7 @@ public class TicketService {
         Ticket t = ticketRepo.findById(id)
                 .orElseThrow(() -> new TicketNotFoundException(id));
 
-        if (!access.canAct(user, t)) {
-            throw new TicketAccessDeniedException();
-        }
+        if (!access.canAct(user, t)) throw new TicketAccessDeniedException();
 
         TicketStatus old = t.getStatus();
         if (old == newStatus) return toResponse(t, true);
@@ -169,11 +187,33 @@ public class TicketService {
 
         Ticket saved = ticketRepo.save(t);
         log.info("Ticket {} status: {} -> {}", saved.getTicketNumber(), old, newStatus);
+
+        eventPublisher.publish(new TicketStatusChangedEvent(
+                saved.getId(), saved.getTicketNumber(),
+                old.name(), newStatus.name(), user.getId(), saved.getCreatedBy()));
+
+        notifyStatusChange(saved, old, newStatus, user.getId());
         return toResponse(saved, true);
     }
 
+    private void notifyStatusChange(Ticket t, TicketStatus oldS, TicketStatus newS, Long actorId) {
+        List<Long> recipients = new ArrayList<>();
+        recipients.add(t.getCreatedBy());
+        if (t.getAssignedTo() != null) recipients.add(t.getAssignedTo());
+
+        notificationService.createForMany(
+                recipients,
+                NotificationType.TICKET_STATUS_CHANGED,
+                String.format("%s status changed", t.getTicketNumber()),
+                oldS + " → " + newS,
+                t.getId(),
+                actorId,
+                "/tickets/" + t.getId()
+        );
+    }
+
     // =====================================================
-    // ASSIGN (agent/admin → to self or group member)
+    // ASSIGN (agent/admin)
     // =====================================================
 
     @Transactional
@@ -181,11 +221,8 @@ public class TicketService {
         Ticket t = ticketRepo.findById(id)
                 .orElseThrow(() -> new TicketNotFoundException(id));
 
-        if (!access.canAct(user, t)) {
-            throw new TicketAccessDeniedException();
-        }
+        if (!access.canAct(user, t)) throw new TicketAccessDeniedException();
 
-        // Non-admin can only assign to self or group members
         if (!user.isAdmin()) {
             boolean targetIsGroupMember = t.getGroupId() != null
                     && access.isMemberOf(t.getGroupId(), assigneeId);
@@ -195,8 +232,32 @@ public class TicketService {
         }
 
         t.setAssignedTo(assigneeId);
+
+        // Auto-set group from assignee's first group (if any)
+        var memberships = groupMemberRepo.findByUserId(assigneeId);
+        if (!memberships.isEmpty()) {
+            t.setGroupId(memberships.get(0).getGroupId());
+            log.info("Ticket {} auto-assigned to group {} from assignee {}",
+                    t.getTicketNumber(), memberships.get(0).getGroupId(), assigneeId);
+        }
+
         Ticket saved = ticketRepo.save(t);
         log.info("Ticket {} assigned to user {}", saved.getTicketNumber(), assigneeId);
+
+        eventPublisher.publish(new TicketAssignedEvent(
+                saved.getId(), saved.getTicketNumber(), assigneeId, user.getId()));
+
+        // Notify assignee
+        notificationService.create(
+                assigneeId,
+                NotificationType.TICKET_ASSIGNED,
+                String.format("Assigned: %s", saved.getTicketNumber()),
+                saved.getTitle(),
+                saved.getId(),
+                user.getId(),
+                "/tickets/" + saved.getId()
+        );
+
         return toResponse(saved, true);
     }
 
@@ -217,6 +278,7 @@ public class TicketService {
 
         t.setGroupId(groupId);
         Ticket saved = ticketRepo.save(t);
+        log.info("Ticket {} assigned to group {}", saved.getTicketNumber(), groupId);
         return toResponse(saved, true);
     }
 
@@ -229,9 +291,7 @@ public class TicketService {
         Ticket t = ticketRepo.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
-        if (!access.canView(user, t)) {
-            throw new TicketAccessDeniedException();
-        }
+        if (!access.canView(user, t)) throw new TicketAccessDeniedException();
 
         AuthorRole role;
         if (user.isAdmin()) role = AuthorRole.ADMIN;
@@ -245,6 +305,32 @@ public class TicketService {
         c.setBody(body);
 
         TicketComment saved = commentRepo.save(c);
+
+        eventPublisher.publish(new TicketCommentedEvent(
+                t.getId(), t.getTicketNumber(), saved.getId(),
+                user.getId(), role.name(), t.getCreatedBy(), t.getAssignedTo()));
+
+        // Notify owner + assignee
+        List<Long> recipients = new ArrayList<>();
+        recipients.add(t.getCreatedBy());
+        if (t.getAssignedTo() != null) recipients.add(t.getAssignedTo());
+
+        notificationService.createForMany(
+                recipients,
+                NotificationType.TICKET_COMMENTED,
+                String.format("New comment on %s", t.getTicketNumber()),
+                body.length() > 100 ? body.substring(0, 100) + "..." : body,
+                t.getId(),
+                user.getId(),
+                "/tickets/" + t.getId()
+        );
+
+        // Mentions
+        var mentioned = mentionService.extractUsernames(body);
+        if (!mentioned.isEmpty()) {
+            log.info("Mentions found in comment: {}", mentioned);
+        }
+
         return mapper.toComment(saved);
     }
 
@@ -260,27 +346,44 @@ public class TicketService {
     // HELPERS
     // =====================================================
 
+    private Instant computeSlaDeadline(TicketPriority priority) {
+        int hours = switch (priority) {
+            case URGENT -> config.getInt("TICKET.SLA.URGENT.HOURS", 2);
+            case HIGH -> config.getInt("TICKET.SLA.HIGH.HOURS", 8);
+            case MEDIUM -> config.getInt("TICKET.SLA.MEDIUM.HOURS", 24);
+            case LOW -> config.getInt("TICKET.SLA.LOW.HOURS", 72);
+        };
+        return Instant.now().plus(hours, java.time.temporal.ChronoUnit.HOURS);
+    }
+
     private boolean isValidTransition(TicketStatus from, TicketStatus to) {
         return switch (from) {
             case OPEN -> to == TicketStatus.IN_PROGRESS || to == TicketStatus.CLOSED;
-            case IN_PROGRESS -> to == TicketStatus.WAITING
-                    || to == TicketStatus.RESOLVED
-                    || to == TicketStatus.CLOSED;
-            case WAITING -> to == TicketStatus.IN_PROGRESS
-                    || to == TicketStatus.RESOLVED
-                    || to == TicketStatus.CLOSED;
+            case IN_PROGRESS -> to == TicketStatus.WAITING || to == TicketStatus.RESOLVED || to == TicketStatus.CLOSED;
+            case WAITING -> to == TicketStatus.IN_PROGRESS || to == TicketStatus.RESOLVED || to == TicketStatus.CLOSED;
             case RESOLVED -> to == TicketStatus.CLOSED || to == TicketStatus.OPEN;
             case CLOSED -> false;
         };
     }
 
     private TicketResponse toResponse(Ticket t, boolean withComments) {
+        return toResponse(t, withComments, null);
+    }
+
+    private TicketResponse toResponse(Ticket t, boolean withComments, UserPrincipal viewer) {
         TicketCategory cat = categoryRepo.findById(t.getCategoryId()).orElse(null);
         TicketGroup grp = t.getGroupId() != null
                 ? groupRepo.findById(t.getGroupId()).orElse(null) : null;
         List<TicketComment> comments = withComments
                 ? commentRepo.findAllByTicketIdOrderByCreatedAtAsc(t.getId())
                 : List.of();
-        return mapper.toResponse(t, cat, grp, comments);
+
+        String viewerRole = "USER";
+        if (viewer != null) {
+            if (viewer.isAdmin()) viewerRole = "ADMIN";
+            else if (access.canAct(viewer, t)) viewerRole = "AGENT";
+        }
+
+        return mapper.toResponse(t, cat, grp, comments, viewerRole);
     }
 }

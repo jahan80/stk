@@ -34,7 +34,7 @@ public class TicketMapper {
     }
 
     public TicketResponse toResponse(Ticket t, TicketCategory cat, TicketGroup grp,
-                                      List<TicketComment> comments) {
+                                      List<TicketComment> comments, String viewerRole) {
         List<CommentResponse> commentResponses = comments == null ? List.of()
                 : comments.stream().map(this::toComment).toList();
 
@@ -56,6 +56,8 @@ public class TicketMapper {
                 .updatedAt(t.getUpdatedAt())
                 .resolvedAt(t.getResolvedAt())
                 .closedAt(t.getClosedAt())
+                .slaDeadline(t.getSlaDeadline())
+                .viewerRole(viewerRole)
                 .commentCount(commentResponses.size())
                 .comments(commentResponses)
                 .build();

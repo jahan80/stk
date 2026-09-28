@@ -21,14 +21,18 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     /** All tickets visible to a user (own + group memberships) */
     @Query("""
         SELECT DISTINCT t FROM Ticket t
-        WHERE t.createdBy = :userId
-           OR t.assignedTo = :userId
-           OR t.groupId IN :groupIds
+        WHERE (t.createdBy = :userId
+               OR t.assignedTo = :userId
+               OR t.groupId IN :groupIds)
+          AND (:status IS NULL OR t.status = :status)
+          AND (:priority IS NULL OR t.priority = :priority)
         ORDER BY t.createdAt DESC
     """)
     Page<Ticket> findVisibleToUser(
             @Param("userId") Long userId,
             @Param("groupIds") List<Long> groupIds,
+            @Param("status") TicketStatus status,
+            @Param("priority") TicketPriority priority,
             Pageable pageable);
 
     /** Only own tickets (created by user) */

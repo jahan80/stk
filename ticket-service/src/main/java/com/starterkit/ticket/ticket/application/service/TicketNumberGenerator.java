@@ -8,13 +8,13 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TicketNumberGenerator {
 
-    private static final String PREFIX = "STK";
-    private static final int PADDING = 4;
-
     private final TicketRepository ticketRepository;
+    private final TicketConfigurationService config;
 
     public synchronized String generate() {
+        String prefix = config.getString("TICKET.NUMBER.PREFIX", "STK");
+        int padding = config.getInt("TICKET.NUMBER.PADDING", 4);
         long count = ticketRepository.count() + 1;
-        return String.format("%s-%0" + PADDING + "d", PREFIX, count);
+        return String.format("%s-%0" + padding + "d", prefix, count);
     }
 }

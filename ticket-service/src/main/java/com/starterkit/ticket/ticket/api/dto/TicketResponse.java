@@ -25,6 +25,8 @@ public class TicketResponse {
     private final Instant updatedAt;
     private final Instant resolvedAt;
     private final Instant closedAt;
+    private final Instant slaDeadline;
+    private final String viewerRole;   // ADMIN, AGENT, or USER
     private final long commentCount;
     private final List<CommentResponse> comments;
 }
