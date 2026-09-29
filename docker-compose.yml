@@ -147,10 +147,38 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8081
       AUDIT_SERVICE_URL: http://audit-service:8082
       NOTIF_SERVICE_URL: http://notif-service:8083
+      TICKET_SERVICE_URL: http://ticket-service:8084
     depends_on:
       - auth-service
       - audit-service
 
+  # ==================================================
+  # ticket-service
+  # ==================================================
+  ticket-service:
+    build:
+      context: .
+      dockerfile: ticket-service/Dockerfile
+    container_name: starterkit-ticket-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: sa
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+
 volumes:
   postgres-data:
   rabbitmq-data:
+
+  # ==================================================

@@ -13,6 +13,9 @@ const TITLES: Record<string, string> = {
   "/admin/audit": "Audit Logs",
   "/admin/rate-limits": "Rate Limits",
   "/notifications": "Notifications",
+  "/tickets": "Tickets",
+  "/tickets/new": "New Ticket",
+  "/admin/ticket-groups": "Ticket Groups",
 }
 
 export function AppLayout() {

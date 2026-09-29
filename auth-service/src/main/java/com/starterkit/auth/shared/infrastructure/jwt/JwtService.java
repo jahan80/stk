@@ -1,5 +1,6 @@
 package com.starterkit.auth.shared.infrastructure.jwt;
 
+import com.starterkit.auth.auth.domain.entity.Permission;
 import com.starterkit.auth.auth.domain.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -32,6 +33,7 @@ public class JwtService {
     private static final String CLAIM_USERNAME = "username";
     private static final String CLAIM_EMAIL    = "email";
     private static final String CLAIM_ROLES    = "roles";
+    private static final String CLAIM_PERMISSIONS = "permissions";
     private static final String CLAIM_TYPE     = "type";
 
     private static final String TOKEN_TYPE_ACCESS  = "access";
@@ -129,6 +131,9 @@ public class JwtService {
                 .claim(CLAIM_USERNAME, user.getUsername())
                 .claim(CLAIM_EMAIL, user.getEmail())
                 .claim(CLAIM_ROLES, List.of(user.getRole().getName()))
+                .claim(CLAIM_PERMISSIONS, user.getRole().getPermissions().stream()
+                        .map(Permission::getCode)
+                        .toList())
                 .claim(CLAIM_TYPE, TOKEN_TYPE_ACCESS)
                 .signWith(getPrivateKey())
                 .compact();

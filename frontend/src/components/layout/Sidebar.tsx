@@ -1,5 +1,7 @@
 import { NavLink } from "react-router-dom"
 import {
+  Ticket,
+  Users as UsersIcon,
   LayoutDashboard,
   User,
   Users,
@@ -30,6 +32,7 @@ const navItems: NavItem[] = [
   { to: "/admin/settings", label: "System Settings", icon: Settings, adminOnly: true },
   { to: "/admin/audit", label: "Audit Logs", icon: FileText, adminOnly: true },
   { to: "/admin/rate-limits", label: "Rate Limits", icon: Gauge, adminOnly: true },
+  { to: "/tickets", label: "Tickets", icon: Ticket },
   { to: "/notifications", label: "Notifications", icon: Bell },
 ]
 

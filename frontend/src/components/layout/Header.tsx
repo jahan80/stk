@@ -1,6 +1,7 @@
 import { Menu, Moon, Sun, Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { usePreferencesStore } from "@/store/preferences"
+import { NotificationBell } from "@/features/notifications/components/NotificationBell"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -31,7 +32,8 @@ export function Header({ onMenuClick, title }: HeaderProps) {
 
       <h2 className="text-lg font-semibold">{title ?? "Dashboard"}</h2>
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
+        <NotificationBell />
         <Button
           variant="ghost"
           size="icon"

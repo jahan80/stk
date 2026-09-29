@@ -46,6 +46,7 @@
         <module>audit-service</module>
         <module>notif-service</module>
         <module>api-gateway</module>
+        <module>ticket-service</module>
     </modules>
 
 </project>
