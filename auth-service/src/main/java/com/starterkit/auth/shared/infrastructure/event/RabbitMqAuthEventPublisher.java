@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(
-        name = "app.events.enabled",
-        havingValue = "true",
+        name = "app.events.publisher",
+        havingValue = "direct-rabbitmq",
         matchIfMissing = false
 )
 public class RabbitMqAuthEventPublisher implements AuthEventPublisher {

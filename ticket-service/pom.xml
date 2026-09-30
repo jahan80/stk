@@ -104,7 +104,14 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-    </dependencies>
+    
+        <!-- Transactional Outbox Pattern -->
+        <dependency>
+            <groupId>com.starterkit</groupId>
+            <artifactId>outbox-commons</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+</dependencies>
 
     <build>
         <plugins>
