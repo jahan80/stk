@@ -1,75 +1,44 @@
-# React + TypeScript + Vite
+# StarterKit — Microservices Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Production-oriented starter kit built on **Spring Boot 3.5 + Java 21**, **React 19 + Vite**, **PostgreSQL 16**, **RabbitMQ 3.13**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Services
 
-## React Compiler
+| Service | Port | Role |
+|---|---|---|
+| `api-gateway` | 8080 | Spring Cloud Gateway (WebFlux), rate limit, trace-id, JWT verify |
+| `auth-service` | 8081 | Users, roles, permissions, JWT, email/mobile verification, password reset |
+| `audit-service` | 8082 | Consumes all business events → `audit.audit_events` |
+| `notif-service` | 8083 | Email / SMS / Push providers, delivery tracking, idempotent, DLQ |
+| `ticket-service` | 8084 | Tickets, comments, groups, SLA, in-app notifications |
+| `outbox-commons` | — | Shared Transactional Outbox library |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Transactional Outbox Pattern
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Business events are **never published directly** to RabbitMQ:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. Service writes entity + `outbox_events` row in the same DB transaction.
+2. Scheduled `OutboxPublisher` polls pending rows.
+3. Each event published in its own `REQUIRES_NEW` TX; failures retried with backoff (5s → 30s → 2m → 10m → 1h cap).
+4. Published rows marked `PUBLISHED` and later deleted by cleanup job.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+**Guarantees:** at-least-once delivery, no event loss during broker outage.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
 
-```
+## Event Envelope
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+```json
+{
+  "eventId":     "uuid",
+  "eventType":   "TICKET_CREATED",
+  "eventVersion":"1.0",
+  "source":      "ticket-service",
+  "traceId":     "uuid",
+  "occurredAt":  "2026-01-01T12:00:00Z",
+  "data":        { }
+}

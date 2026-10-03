@@ -183,6 +183,20 @@ export function useRateLimits() {
   })
 }
 
+export function useCreateRateLimit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: RateLimitRequest) => rateLimitsApi.create(data),
+    onSuccess: () => {
+      toast.success("Rate limit created")
+      qc.invalidateQueries({ queryKey: queryKeys.rateLimits.all })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to create rate limit")
+    },
+  })
+}
+
 export function useUpdateRateLimit() {
   const qc = useQueryClient()
   return useMutation({
