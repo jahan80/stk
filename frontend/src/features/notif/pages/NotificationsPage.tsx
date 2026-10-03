@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  Bell, Mail, MessageSquare, Smartphone, ChevronLeft, ChevronRight, ExternalLink, AlertCircle,
+  Bell, Mail, MessageSquare, Smartphone, ChevronLeft, ChevronRight, ExternalLink, AlertCircle, Search, X,
 } from "lucide-react"
 import { formatRelativeTime, formatDate } from "@/lib/utils"
 import type { Notification } from "@/types/notif"
