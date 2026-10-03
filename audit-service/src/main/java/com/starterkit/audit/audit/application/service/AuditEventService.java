@@ -7,6 +7,7 @@ import com.starterkit.audit.audit.domain.repository.AuditEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,8 +28,24 @@ public class AuditEventService {
     @Transactional
     public AuditEvent saveFromMessage(AuthEventMessage message) {
 
-        UUID eventId = UUID.fromString(message.getEventId());
+        // Validate eventId format. Malformed → reject to DLQ (no retry).
+        UUID eventId;
+        try {
+            eventId = UUID.fromString(message.getEventId());
+        } catch (Exception ex) {
+            log.error("Invalid eventId format, rejecting: {}", message.getEventId(), ex);
+            throw new AmqpRejectAndDontRequeueException(
+                    "Invalid eventId: " + message.getEventId(), ex);
+        }
 
+        // Validate eventType. Missing → reject to DLQ.
+        if (message.getEventType() == null || message.getEventType().isBlank()) {
+            log.error("Missing eventType, rejecting: eventId={}", eventId);
+            throw new AmqpRejectAndDontRequeueException(
+                    "Missing eventType for eventId: " + eventId);
+        }
+
+        // Idempotency: duplicate → skip.
         if (auditEventRepository.existsByEventId(eventId)) {
             log.warn("Duplicate event received: eventId={} (skipping)", eventId);
             return null;
@@ -71,28 +88,13 @@ public class AuditEventService {
             Instant to,
             Pageable pageable
     ) {
-        Page<AuditEvent> events;
+        // All filters are optional and AND-combined.
+        // Normalize blank strings to null so predicates are skipped.
+        String typeFilter = StringUtils.hasText(eventType) ? eventType : null;
+        String sourceFilter = StringUtils.hasText(source) ? source : null;
 
-        boolean hasType = StringUtils.hasText(eventType);
-        boolean hasSource = StringUtils.hasText(source);
-        boolean hasRange = (from != null && to != null);
-
-        if (hasType && hasSource) {
-            events = auditEventRepository
-                    .findByEventTypeAndSourceOrderByOccurredAtDesc(eventType, source, pageable);
-        } else if (hasType) {
-            events = auditEventRepository
-                    .findByEventTypeOrderByOccurredAtDesc(eventType, pageable);
-        } else if (hasSource) {
-            events = auditEventRepository
-                    .findBySourceOrderByOccurredAtDesc(source, pageable);
-        } else if (hasRange) {
-            events = auditEventRepository
-                    .findByDateRange(from, to, pageable);
-        } else {
-            events = auditEventRepository
-                    .findAllByOrderByOccurredAtDesc(pageable);
-        }
+        Page<AuditEvent> events = auditEventRepository.search(
+                typeFilter, sourceFilter, from, to, pageable);
 
         return events.map(this::toResponse);
     }

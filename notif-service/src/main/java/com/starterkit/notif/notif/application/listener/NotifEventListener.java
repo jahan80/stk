@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -88,6 +89,19 @@ public class NotifEventListener {
             }
         } catch (AmqpRejectAndDontRequeueException ex) {
             // Already classified as "do not retry" — let it propagate to DLQ.
+            throw ex;
+        } catch (DataIntegrityViolationException ex) {
+            // Race condition: another consumer created the same event_id
+            // between our pre-check and our insert. The UNIQUE constraint
+            // caught it. This is NOT a transient failure — do NOT retry.
+            // Treat as duplicate and ACK.
+            String msg = ex.getMessage();
+            if (msg != null && msg.contains("uk_notifications_event_id")) {
+                log.info("Duplicate event (race condition), ACKing: eventId={}", eventId);
+                return;
+            }
+            // Any other integrity violation is unexpected — retry.
+            log.error("Data integrity violation for eventId={}", eventId, ex);
             throw ex;
         } catch (Exception ex) {
             log.error("Failed to process notif event: eventId={}, type={}",

@@ -17,24 +17,22 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
 
     boolean existsByEventId(UUID eventId);
 
-    // Query 1: همه با page
-    Page<AuditEvent> findAllByOrderByOccurredAtDesc(Pageable pageable);
-
-    // Query 2: فقط eventType
-    Page<AuditEvent> findByEventTypeOrderByOccurredAtDesc(String eventType, Pageable pageable);
-
-    // Query 3: فقط source
-    Page<AuditEvent> findBySourceOrderByOccurredAtDesc(String source, Pageable pageable);
-
-    // Query 4: eventType + source
-    Page<AuditEvent> findByEventTypeAndSourceOrderByOccurredAtDesc(
-            String eventType, String source, Pageable pageable);
-
-    // Query 5: با بازه زمانی
-    @Query("SELECT a FROM AuditEvent a " +
-           "WHERE a.occurredAt >= :from AND a.occurredAt <= :to " +
-           "ORDER BY a.occurredAt DESC")
-    Page<AuditEvent> findByDateRange(
+    /**
+     * Combined-filter search.
+     * All filters are optional and AND-combined.
+     * Passing null for any filter disables that predicate.
+     */
+    @Query("""
+        SELECT a FROM AuditEvent a
+        WHERE (:eventType IS NULL OR a.eventType = :eventType)
+          AND (:source IS NULL OR a.source = :source)
+          AND (:from IS NULL OR a.occurredAt >= :from)
+          AND (:to IS NULL OR a.occurredAt <= :to)
+        ORDER BY a.occurredAt DESC
+    """)
+    Page<AuditEvent> search(
+            @Param("eventType") String eventType,
+            @Param("source") String source,
             @Param("from") Instant from,
             @Param("to") Instant to,
             Pageable pageable);
