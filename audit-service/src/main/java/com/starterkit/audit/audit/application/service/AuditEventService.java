@@ -6,6 +6,7 @@ import com.starterkit.audit.audit.domain.entity.AuditEvent;
 import com.starterkit.audit.audit.domain.repository.AuditEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.data.domain.Pageable;
@@ -63,22 +64,36 @@ public class AuditEventService {
                 ? message.getSource()
                 : "unknown");
         event.setTraceId(message.getTraceId());
-        event.setPayload(message.getData());
+        // JSONB NOT NULL — fall back to empty map if payload is null
+        event.setPayload(message.getData() != null ? message.getData() : java.util.Map.of());
         event.setOccurredAt(
                 message.getOccurredAt() != null
                         ? message.getOccurredAt()
                         : Instant.now()
         );
 
-        AuditEvent saved = auditEventRepository.save(event);
+        try {
+            AuditEvent saved = auditEventRepository.save(event);
 
-        log.info("Audit event saved: id={}, type={}, source={}, traceId={}",
-                saved.getId(),
-                saved.getEventType(),
-                saved.getSource(),
-                saved.getTraceId());
+            log.info("Audit event saved: id={}, type={}, source={}, traceId={}",
+                    saved.getId(),
+                    saved.getEventType(),
+                    saved.getSource(),
+                    saved.getTraceId());
 
-        return saved;
+            return saved;
+
+        } catch (DataIntegrityViolationException ex) {
+            // Race condition: another consumer inserted the same event_id
+            // between our existsByEventId check and this save.
+            // The UNIQUE constraint on event_id caught it. Treat as duplicate.
+            String msg = ex.getMessage();
+            if (msg != null && msg.contains("audit_events_event_id_key")) {
+                log.info("Duplicate audit event (race), skipping: eventId={}", eventId);
+                return null;
+            }
+            throw ex;
+        }
     }
 
     public Page<AuditEventResponse> search(

@@ -113,6 +113,10 @@ public class NotifEventListener {
 
     private void handleSms(NotifEventMessage message, UUID eventId) {
         Map<String, Object> data = message.getData();
+        if (data == null) {
+            throw new AmqpRejectAndDontRequeueException(
+                    "Missing data payload for SEND_SMS, eventId=" + eventId);
+        }
 
         SmsRequest request = new SmsRequest();
         request.setTo(asString(data.get("to")));
@@ -123,6 +127,10 @@ public class NotifEventListener {
 
     private void handleEmail(NotifEventMessage message, UUID eventId) {
         Map<String, Object> data = message.getData();
+        if (data == null) {
+            throw new AmqpRejectAndDontRequeueException(
+                    "Missing data payload for SEND_EMAIL, eventId=" + eventId);
+        }
 
         EmailRequest request = new EmailRequest();
         request.setTo(asString(data.get("to")));
@@ -134,6 +142,10 @@ public class NotifEventListener {
 
     private void handlePush(NotifEventMessage message, UUID eventId) {
         Map<String, Object> data = message.getData();
+        if (data == null) {
+            throw new AmqpRejectAndDontRequeueException(
+                    "Missing data payload for SEND_PUSH, eventId=" + eventId);
+        }
 
         PushRequest request = new PushRequest();
         request.setDeviceToken(asString(data.get("deviceToken")));

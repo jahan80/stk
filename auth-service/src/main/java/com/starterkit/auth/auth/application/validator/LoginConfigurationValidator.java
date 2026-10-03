@@ -46,7 +46,8 @@ public class LoginConfigurationValidator {
         if (identifier.contains("@")) {
             return IdentifierType.EMAIL;
         }
-        if (identifier.matches("\\d+")) {
+        // Mobile: 8-20 digits, optionally starting with +
+        if (identifier.matches("\\+?[0-9]{8,20}")) {
             return IdentifierType.MOBILE;
         }
         return IdentifierType.USERNAME;

@@ -41,7 +41,13 @@ public class NotifEventPublisher {
             rabbitTemplate.convertAndSend(
                     EXCHANGE,
                     "notif.email.send",
-                    message
+                    message,
+                    m -> {
+                        if (traceId != null) {
+                            m.getMessageProperties().setHeader("X-Trace-Id", traceId);
+                        }
+                        return m;
+                    }
             );
 
             log.info("Notif command sent: type=SEND_EMAIL, to={}, traceId={}",

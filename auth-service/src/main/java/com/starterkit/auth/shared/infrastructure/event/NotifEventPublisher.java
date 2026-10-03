@@ -26,7 +26,13 @@ public class NotifEventPublisher {
             rabbitTemplate.convertAndSend(
                     EXCHANGE,
                     "notif.email.send",
-                    message
+                    message,
+                    m -> {
+                        if (traceId != null) {
+                            m.getMessageProperties().setHeader("X-Trace-Id", traceId);
+                        }
+                        return m;
+                    }
             );
 
             log.info("Notif event published: type=SEND_EMAIL, to={}, traceId={}",
@@ -48,7 +54,13 @@ public class NotifEventPublisher {
             rabbitTemplate.convertAndSend(
                     EXCHANGE,
                     "notif.sms.send",
-                    msg
+                    msg,
+                    m -> {
+                        if (traceId != null) {
+                            m.getMessageProperties().setHeader("X-Trace-Id", traceId);
+                        }
+                        return m;
+                    }
             );
 
             log.info("Notif event published: type=SEND_SMS, to={}, traceId={}",

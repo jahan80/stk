@@ -48,6 +48,19 @@ public class RateLimitConfigService {
     @Transactional
     @CacheEvict(value = "activeRateLimits", allEntries = true)
     public RateLimitResponse create(RateLimitRequest request) {
+        // Pre-check for duplicate: (pathPattern, method, keyType)
+        // Note: method may be null → use COALESCE-equivalent check.
+        boolean duplicate = repository.findAll().stream()
+                .anyMatch(c -> c.getPathPattern().equals(request.getPathPattern())
+                        && java.util.Objects.equals(c.getMethod(), request.getMethod())
+                        && c.getKeyType() == request.getKeyType());
+        if (duplicate) {
+            throw new IllegalStateException(
+                    "Rate limit already exists for path=" + request.getPathPattern()
+                            + ", method=" + request.getMethod()
+                            + ", keyType=" + request.getKeyType());
+        }
+
         RateLimitConfig config = new RateLimitConfig();
         config.setPathPattern(request.getPathPattern());
         config.setMethod(request.getMethod());

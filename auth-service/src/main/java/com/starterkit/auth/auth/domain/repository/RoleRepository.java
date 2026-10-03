@@ -12,6 +12,10 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
 
     Optional<Role> findByName(String name);
 
+    Optional<Role> findByNameAndDeletedAtIsNull(String name);
+
+    boolean existsByNameAndDeletedAtIsNull(String name);
+
     boolean existsByName(String name);
 
     @Query("SELECT DISTINCT r FROM Role r LEFT JOIN FETCH r.permissions WHERE r.id = :id")

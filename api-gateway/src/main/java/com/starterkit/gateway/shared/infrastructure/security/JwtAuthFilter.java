@@ -20,6 +20,18 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Verifies JWT for /gateway/** endpoints.
+ *
+ * IMPORTANT: This filter MUST run BEFORE RateLimitingFilter because:
+ *   - RateLimitingFilter uses X-User-Id for USER/USER_PATH key types.
+ *   - X-User-Id is only set by this filter (trusted), never by the client.
+ *
+ * Order:
+ *   JwtAuthFilter        = HIGHEST_PRECEDENCE + 10   (this)
+ *   RateLimitingFilter   = HIGHEST_PRECEDENCE + 20
+ *   LoggingFilter        = HIGHEST_PRECEDENCE
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -73,7 +85,8 @@ public class JwtAuthFilter implements WebFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE + 100;
+        // Must run BEFORE RateLimitingFilter (HIGHEST + 20).
+        return Ordered.HIGHEST_PRECEDENCE + 10;
     }
 
     private String extractToken(ServerHttpRequest request) {
@@ -99,7 +112,6 @@ public class JwtAuthFilter implements WebFilter, Ordered {
         response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        // CORS header for error responses
         String origin = exchange.getRequest().getHeaders().getOrigin();
         if (origin != null) {
             response.getHeaders().set(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin);

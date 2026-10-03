@@ -71,15 +71,13 @@ public class TokenService {
         // =====================================================
         // P0-5: Refresh Token Reuse Detection
         // If token is already revoked, someone is reusing it.
-        // Revoke all tokens for this user (defense against theft).
+        // Revoke all tokens for this user in a SEPARATE transaction
+        // so the revoke commits even though we throw afterwards.
         // =====================================================
         if (existing.isRevoked()) {
             log.warn("Refresh token reuse detected for user {}. Revoking all tokens.",
                     existing.getUser().getId());
-            refreshTokenRepository.revokeAllByUserId(
-                    existing.getUser().getId(),
-                    Instant.now()
-            );
+            revokeAllTokensForUser(existing.getUser().getId());
             throw new LoginException(ApiCode.INVALID_CREDENTIALS);
         }
 
@@ -179,6 +177,16 @@ public class TokenService {
         return refreshTokenRepository.findByTokenHash(tokenHash)
                 .map(RefreshToken::getUser)
                 .orElse(null);
+    }
+
+    /**
+     * Revokes all active refresh tokens for a user.
+     * Runs in its own transaction so a caller's rollback does not undo it.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void revokeAllTokensForUser(Long userId) {
+        int revoked = refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
+        log.warn("Revoked {} refresh tokens for user {}", revoked, userId);
     }
 
 }

@@ -46,7 +46,10 @@ public class UserCreationService {
             throw new UserAlreadyExistsException("mobileNumber");
         }
 
-        // Resolve role
+        // Resolve role (null-safe)
+        if (data.roleId() == null) {
+            throw new RoleNotFoundException(null);
+        }
         Role role = roleRepository.findById(data.roleId())
                 .orElseThrow(() -> new RoleNotFoundException(data.roleId()));
 

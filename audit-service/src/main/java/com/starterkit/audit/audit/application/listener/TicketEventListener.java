@@ -29,6 +29,14 @@ public class TicketEventListener {
                 message.getEventId(),
                 message.getTraceId());
 
-        auditEventService.saveFromMessage(message);
+        try {
+            auditEventService.saveFromMessage(message);
+        } catch (Exception ex) {
+            log.error("Failed to process ticket event: eventId={}, type={}",
+                    message.getEventId(),
+                    message.getEventType(),
+                    ex);
+            throw ex;
+        }
     }
 }
