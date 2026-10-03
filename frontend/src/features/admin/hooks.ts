@@ -329,3 +329,11 @@ export function useUpdateRole() {
     },
   })
 }
+
+export function useUser(id: number | null) {
+  return useQuery({
+    queryKey: [...queryKeys.users.all, id],
+    queryFn: () => usersApi.get(id!),
+    enabled: id != null,
+  })
+}
