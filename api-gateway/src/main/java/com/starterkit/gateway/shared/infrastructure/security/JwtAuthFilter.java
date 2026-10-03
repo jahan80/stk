@@ -40,10 +40,6 @@ public class JwtAuthFilter implements WebFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        if (path.equals("/gateway/rate-limits/active")) {
-            return chain.filter(exchange);
-        }
-
         String token = extractToken(request);
 
         if (token == null) {

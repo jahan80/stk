@@ -7,7 +7,6 @@ import com.starterkit.ticket.ticket.application.exception.*;
 import com.starterkit.ticket.ticket.application.mapper.TicketMapper;
 import com.starterkit.ticket.ticket.domain.entity.*;
 import com.starterkit.ticket.ticket.domain.repository.*;
-import com.starterkit.ticket.shared.infrastructure.event.NotifEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -37,7 +36,6 @@ public class TicketService {
     private final NotificationService notificationService;
     private final MentionService mentionService;
     private final TicketGroupMemberRepository groupMemberRepo;
-    private final NotifEventPublisher notifEventPublisher;
 
     // =====================================================
     // CREATE
@@ -388,13 +386,25 @@ public class TicketService {
     // NOTIFICATION HELPER (best-effort email via notif-service)
     // =====================================================
 
+    /**
+     * Email notification is intentionally NOT sent from ticket-service.
+     *
+     * Rationale: ticket-service does not have the owner's email — it only
+     * stores user IDs. Looking it up would require a synchronous call to
+     * auth-service, which couples the two services and adds latency.
+     *
+     * Instead:
+     *   - In-app notifications (ticket.notifications) are created for users
+     *     who can see the ticket.
+     *   - If email is needed, an integration test should verify that
+     *     auth-service can fetch contact info via a dedicated internal
+     *     endpoint. This is tracked as a follow-up (see ARCHITECTURE.md).
+     *
+     * TODO: Add /auth/users/{id}/contact (service-to-service only) and
+     *       wire it here when an async notif flow is available.
+     */
     private void sendTicketEmail(Ticket ticket, String subject, String body) {
-        // Ticket has no email directly; we fall back to notifying the
-        // ticket owner via UserPrincipal email only when available.
-        // For richer notifications we would query auth-service; kept
-        // simple for now: if no email is available we skip silently.
-        // (Owner's email is not stored in ticket-service.)
-        log.debug("Ticket email skipped: no direct email on Ticket entity for {}",
+        log.debug("Email skipped (no email in ticket-service): ticket={}",
                 ticket.getTicketNumber());
     }
 

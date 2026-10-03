@@ -46,11 +46,6 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
         String path = request.getPath().value();
         String method = request.getMethod().name();
 
-        // Skip gateway admin endpoints
-        if (path.startsWith("/gateway/")) {
-            return chain.filter(exchange);
-        }
-
         // Find matching config
         Optional<ActiveRateLimitResponse> configOpt = findMatchingConfig(path, method);
 
