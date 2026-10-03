@@ -20,6 +20,7 @@ export interface PushRequest {
 
 export interface Notification {
   notificationId: string
+  eventId: string
   channel: "EMAIL" | "SMS" | "PUSH"
   recipient: string
   subject?: string

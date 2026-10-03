@@ -9,6 +9,7 @@ import { RegisterPage } from "@/features/auth/pages/RegisterPage"
 import { ForgotPasswordPage } from "@/features/auth/pages/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/features/auth/pages/ResetPasswordPage"
 import { VerifyEmailPage } from "@/features/auth/pages/VerifyEmailPage"
+import { VerifyMobilePage } from "@/features/auth/pages/VerifyMobilePage"
 
 // App pages
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage"
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
   { path: "/verify-email", element: <VerifyEmailPage /> },
+  { path: "/verify-mobile", element: <VerifyMobilePage /> },
 
   // Public profile (no auth)
   { path: "/u/:username", element: <PublicProfilePage /> },

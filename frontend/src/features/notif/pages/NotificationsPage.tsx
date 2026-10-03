@@ -3,18 +3,24 @@ import { useQuery } from "@tanstack/react-query"
 import { notifApi, type NotifSearchParams } from "@/api/endpoints/notif"
 import { queryKeys } from "@/api/queryKeys"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Bell, Mail, MessageSquare, Smartphone, ChevronLeft, ChevronRight } from "lucide-react"
-import { formatRelativeTime } from "@/lib/utils"
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Bell, Mail, MessageSquare, Smartphone, ChevronLeft, ChevronRight, ExternalLink, AlertCircle,
+} from "lucide-react"
+import { formatRelativeTime, formatDate } from "@/lib/utils"
+import type { Notification } from "@/types/notif"
 
 export function NotificationsPage() {
   const [page, setPage] = useState(0)
   const [channel, setChannel] = useState("")
   const [status, setStatus] = useState("")
+  const [selected, setSelected] = useState<Notification | null>(null)
 
   const params: NotifSearchParams = {
     channel: channel || undefined,
@@ -45,9 +51,9 @@ export function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Notifications</h1>
+        <h1 className="text-3xl font-bold">Delivery Notifications</h1>
         <p className="text-muted-foreground">
-          {totalElements} notification(s) sent
+          {totalElements} notification(s) processed by notif-service
         </p>
       </div>
 
@@ -78,7 +84,7 @@ export function NotificationsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Notification History</CardTitle>
-          <CardDescription>Page {page + 1} of {Math.max(totalPages, 1)}</CardDescription>
+          <CardDescription>Page {page + 1} of {Math.max(totalPages, 1)} — click a row for details</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -95,32 +101,39 @@ export function NotificationsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Channel</TableHead>
+                  <TableHead>Event ID</TableHead>
                   <TableHead>Recipient</TableHead>
                   <TableHead>Subject</TableHead>
-                  <TableHead>Provider</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead className="text-right"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {notifications.map((n) => (
-                  <TableRow key={n.notificationId}>
+                  <TableRow
+                    key={n.notificationId}
+                    className="cursor-pointer"
+                    onClick={() => setSelected(n)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {channelIcon(n.channel)}
                         <span className="text-sm">{n.channel}</span>
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono">
+                        {n.eventId ? n.eventId.slice(0, 8) + "…" : "—"}
+                      </code>
+                    </TableCell>
                     <TableCell className="text-sm font-mono">
-                      {n.recipient.length > 30
-                        ? n.recipient.slice(0, 30) + "…"
+                      {n.recipient.length > 25
+                        ? n.recipient.slice(0, 25) + "…"
                         : n.recipient}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {n.subject || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{n.provider}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -137,6 +150,11 @@ export function NotificationsPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {formatRelativeTime(n.createdAt)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm">
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -171,6 +189,83 @@ export function NotificationsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Details Dialog */}
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selected && channelIcon(selected.channel)}
+              Notification Details
+            </DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              {selected?.notificationId}
+            </DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <DetailRow label="Channel" value={selected.channel} />
+                <DetailRow label="Status" value={selected.status} />
+                <DetailRow label="Provider" value={selected.provider} />
+                <DetailRow label="Event ID" value={selected.eventId || "—"} mono />
+                <DetailRow label="Recipient" value={selected.recipient} mono />
+                <DetailRow label="Provider Msg ID" value={selected.providerMessageId || "—"} mono />
+                <DetailRow label="Created" value={formatDate(selected.createdAt)} />
+                <DetailRow
+                  label="Sent"
+                  value={selected.sentAt ? formatDate(selected.sentAt) : "—"}
+                />
+              </div>
+
+              {selected.subject && (
+                <div>
+                  <p className="mb-1 text-sm font-medium">Subject</p>
+                  <p className="rounded-md bg-muted p-3 text-sm">{selected.subject}</p>
+                </div>
+              )}
+
+              {selected.errorMessage && (
+                <div>
+                  <p className="mb-1 flex items-center gap-1 text-sm font-medium text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    Error
+                  </p>
+                  <pre className="overflow-x-auto rounded-md bg-destructive/10 p-3 text-xs text-destructive">
+                    {selected.errorMessage}
+                  </pre>
+                </div>
+              )}
+
+              {selected.metadata && Object.keys(selected.metadata).length > 0 && (
+                <div>
+                  <p className="mb-1 text-sm font-medium">Metadata</p>
+                  <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+                    {JSON.stringify(selected.metadata, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function DetailRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-sm ${mono ? "font-mono break-all" : ""}`}>{value}</p>
     </div>
   )
 }

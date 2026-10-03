@@ -51,19 +51,42 @@ export function AuditLogPage() {
         <CardContent className="flex flex-wrap items-end gap-3 pt-6">
           <div className="flex-1 min-w-[200px] space-y-2">
             <Label>Event Type</Label>
-            <Input
-              placeholder="e.g. USER_REGISTERED"
+            <select
               value={eventType}
               onChange={(e) => { setEventType(e.target.value); setPage(0) }}
-            />
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All event types</option>
+              <optgroup label="Auth">
+                <option value="USER_REGISTERED">USER_REGISTERED</option>
+                <option value="USER_LOGGED_IN">USER_LOGGED_IN</option>
+                <option value="USER_LOGGED_OUT">USER_LOGGED_OUT</option>
+              </optgroup>
+              <optgroup label="Ticket">
+                <option value="TICKET_CREATED">TICKET_CREATED</option>
+                <option value="TICKET_ASSIGNED">TICKET_ASSIGNED</option>
+                <option value="TICKET_COMMENTED">TICKET_COMMENTED</option>
+                <option value="TICKET_STATUS_CHANGED">TICKET_STATUS_CHANGED</option>
+              </optgroup>
+              <optgroup label="Gateway">
+                <option value="REQUEST_RECEIVED">REQUEST_RECEIVED</option>
+                <option value="RESPONSE_SENT">RESPONSE_SENT</option>
+              </optgroup>
+            </select>
           </div>
           <div className="flex-1 min-w-[200px] space-y-2">
             <Label>Source</Label>
-            <Input
-              placeholder="e.g. auth-service"
+            <select
               value={source}
               onChange={(e) => { setSource(e.target.value); setPage(0) }}
-            />
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All sources</option>
+              <option value="auth-service">auth-service</option>
+              <option value="ticket-service">ticket-service</option>
+              <option value="api-gateway">api-gateway</option>
+              <option value="notif-service">notif-service</option>
+            </select>
           </div>
           <Button variant="outline" onClick={clearFilters}>
             <X className="mr-2 h-4 w-4" />

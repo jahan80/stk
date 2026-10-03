@@ -98,6 +98,7 @@ export function ProfilePage() {
                 label="Email"
                 value={user.email || "—"}
                 verified={user.emailVerified}
+                verifyHref={`/verify-email?email=${encodeURIComponent(user.email || "")}`}
               />
               <Separator />
               <VerificationRow
@@ -105,6 +106,7 @@ export function ProfilePage() {
                 label="Mobile"
                 value={user.mobileNumber || "—"}
                 verified={user.mobileVerified}
+                verifyHref={`/verify-mobile?mobile=${encodeURIComponent(user.mobileNumber || "")}`}
               />
             </CardContent>
           </Card>
@@ -152,12 +154,13 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 }
 
 function VerificationRow({
-  icon: Icon, label, value, verified,
+  icon: Icon, label, value, verified, verifyHref,
 }: {
   icon: React.ElementType
   label: string
   value: string
   verified: boolean
+  verifyHref?: string
 }) {
   return (
     <div className="flex items-center gap-3">
@@ -172,10 +175,17 @@ function VerificationRow({
           Verified
         </Badge>
       ) : (
-        <Badge variant="warning">
-          <XCircle className="mr-1 h-3 w-3" />
-          Not verified
-        </Badge>
+        <>
+          <Badge variant="warning">
+            <XCircle className="mr-1 h-3 w-3" />
+            Not verified
+          </Badge>
+          {verifyHref && value !== "—" && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={verifyHref}>Verify</Link>
+            </Button>
+          )}
+        </>
       )}
     </div>
   )

@@ -38,3 +38,10 @@ export const verifyEmailSchema = z.object({
 })
 
 export type VerifyEmailFormData = z.infer<typeof verifyEmailSchema>
+
+export const verifyMobileSchema = z.object({
+  mobileNumber: z.string().regex(/^\+?[0-9]{8,20}$/, "Invalid mobile number"),
+  code: z.string().min(4, "Code is required").max(10),
+})
+
+export type VerifyMobileFormData = z.infer<typeof verifyMobileSchema>
