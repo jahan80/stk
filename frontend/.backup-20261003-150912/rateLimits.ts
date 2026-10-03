@@ -1,16 +1,11 @@
 import { apiClient } from "../client"
 import type { ApiResponse } from "@/types/api"
-import type { RateLimit, RateLimitRequest, ActiveRateLimit } from "@/types/rateLimits"
+import type { RateLimit, RateLimitRequest } from "@/types/rateLimits"
 
 export const rateLimitsApi = {
   list: () =>
     apiClient
       .get<ApiResponse<RateLimit[]>>("/gateway/rate-limits")
-      .then((r) => r.data),
-
-  active: () =>
-    apiClient
-      .get<ApiResponse<ActiveRateLimit[]>>("/gateway/rate-limits/active")
       .then((r) => r.data),
 
   get: (id: number) =>

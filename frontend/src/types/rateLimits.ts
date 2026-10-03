@@ -28,3 +28,13 @@ export interface RateLimitRequest {
   description?: string
   enabled: boolean
 }
+
+export interface ActiveRateLimit {
+  pathPattern: string
+  method?: string
+  keyType: "IP" | "IP_PATH" | "USER" | "USER_PATH"
+  requestsPerWindow: number
+  windowSeconds: number
+  burstCapacity?: number
+  priority: number
+}
