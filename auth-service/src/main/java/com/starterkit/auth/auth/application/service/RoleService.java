@@ -3,6 +3,7 @@ package com.starterkit.auth.auth.application.service;
 import com.starterkit.auth.auth.api.dto.PermissionResponse;
 import com.starterkit.auth.auth.api.dto.RoleRequest;
 import com.starterkit.auth.auth.api.dto.RoleResponse;
+import com.starterkit.auth.auth.application.exception.DeletedRoleException;
 import com.starterkit.auth.auth.application.exception.PermissionNotFoundException;
 import com.starterkit.auth.auth.application.exception.RoleAlreadyExistsException;
 import com.starterkit.auth.auth.application.exception.RoleInUseException;
@@ -42,6 +43,12 @@ public class RoleService {
     public RoleResponse getById(Long id) {
         Role role = roleRepository.findByIdWithPermissions(id)
                 .orElseThrow(() -> new RoleNotFoundException(id));
+
+        // Soft-deleted roles are treated as "not found" for reads.
+        if (role.getDeletedAt() != null) {
+            throw new RoleNotFoundException(id);
+        }
+
         return toResponse(role);
     }
 
@@ -70,7 +77,7 @@ public class RoleService {
 
     @Transactional
     public RoleResponse update(Long id, RoleRequest request) {
-        Role role = roleRepository.findById(id)
+        Role role = roleRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new RoleNotFoundException(id));
 
         if (role.isSystemRole()) {
@@ -88,6 +95,12 @@ public class RoleService {
     public void delete(Long id) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new RoleNotFoundException(id));
+
+        // Idempotent: already soft-deleted? -> no-op
+        if (role.getDeletedAt() != null) {
+            log.debug("Role {} already soft-deleted, skipping", id);
+            return;
+        }
 
         if (role.isSystemRole()) {
             throw new SystemRoleProtectedException(role.getName(), "deleted");

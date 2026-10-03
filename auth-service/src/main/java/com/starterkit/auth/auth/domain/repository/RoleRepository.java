@@ -14,6 +14,12 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
 
     Optional<Role> findByNameAndDeletedAtIsNull(String name);
 
+    /**
+     * Look up an active (non-deleted) role by id.
+     * Used by RoleService.getById / update to reject soft-deleted roles.
+     */
+    Optional<Role> findByIdAndDeletedAtIsNull(Long id);
+
     boolean existsByNameAndDeletedAtIsNull(String name);
 
     boolean existsByName(String name);
