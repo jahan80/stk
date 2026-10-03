@@ -1,10 +1,11 @@
+import { useState } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
   useTicket, useComments, useAddComment, useCloseTicket,
-  useChangeStatus, useAssignTicket,
+  useChangeStatus, useAssignTicket, useAssignToGroup,
 } from "../hooks"
 import { TicketStatusBadge, TicketPriorityBadge } from "../components/TicketBadges"
 import { AssigneeDropdown } from "../components/AssigneeDropdown"
@@ -20,6 +21,10 @@ import {
 } from "@/components/ui/select"
 import { AlertCircle, ArrowLeft, Clock, MessageSquare, XCircle, Loader2, Send } from "lucide-react"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/api/client"
 import { useAuthStore } from "@/store/auth"
@@ -57,6 +62,7 @@ export function TicketDetailPage() {
   const closeTicket = useCloseTicket(ticketId)
   const changeStatus = useChangeStatus(ticketId)
   const assign = useAssignTicket(ticketId)
+  const assignToGroup = useAssignToGroup(ticketId)
 
   const ticket = ticketData?.data
   const comments = commentsData?.data ?? []
@@ -66,6 +72,18 @@ export function TicketDetailPage() {
   const isAdmin = viewerRole === "ADMIN" || user?.role === "ADMIN"
   const isAgent = viewerRole === "AGENT"
   const canMention = isAdmin || isAgent
+
+  const [confirmClose, setConfirmClose] = useState(false)
+
+  const { data: groupsData } = useQuery({
+    queryKey: ["ticket-groups"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/tickets/groups")
+      return data
+    },
+    enabled: isAdmin,
+  })
+  const groups = (groupsData?.data as any[]) ?? []
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -124,7 +142,7 @@ export function TicketDetailPage() {
             {canClose && (
               <Button
                 variant="outline"
-                onClick={() => { if (confirm("Close this ticket?")) closeTicket.mutate() }}
+                onClick={() => setConfirmClose(true)}
                 disabled={closeTicket.isPending}
               >
                 <XCircle className="mr-2 h-4 w-4" /> Close
@@ -136,7 +154,7 @@ export function TicketDetailPage() {
           {/* Admin actions */}
           {isAdmin && (
             <>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Status</label>
                   <Select
@@ -160,6 +178,23 @@ export function TicketDetailPage() {
                     onAssign={(userId) => assign.mutate({ assigneeId: userId })}
                     isPending={assign.isPending}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Group</label>
+                  <Select
+                    value={ticket.groupId ? String(ticket.groupId) : "none"}
+                    onValueChange={(v) => assignToGroup.mutate(v === "none" ? null : Number(v))}
+                    disabled={assignToGroup.isPending}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No group</SelectItem>
+                      {groups.map((g: any) => (
+                        <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <Separator />
@@ -270,6 +305,29 @@ export function TicketDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close this ticket?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Closing ticket <span className="font-mono font-medium">{ticket.ticketNumber}</span> will
+              mark it as closed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={closeTicket.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => closeTicket.mutate(undefined, { onSuccess: () => setConfirmClose(false) })}
+              disabled={closeTicket.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {closeTicket.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Close Ticket
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
