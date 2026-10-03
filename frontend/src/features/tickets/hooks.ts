@@ -202,12 +202,12 @@ export function useRemoveGroupMember() {
 }
 
 // ===== Configurations =====
-import { configsApi } from "@/api/endpoints/tickets"
+import { ticketConfigsApi } from "@/api/endpoints/tickets"
 
 export function useTicketConfigs() {
   return useQuery({
     queryKey: queryKeys.tickets.configs,
-    queryFn: () => configsApi.list(),
+    queryFn: () => ticketConfigsApi.list(),
     staleTime: 30_000,
   })
 }
@@ -215,7 +215,7 @@ export function useTicketConfigs() {
 export function useUpdateTicketConfig() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ key, value }: { key: string; value: string }) => configsApi.update(key, value),
+    mutationFn: ({ key, value }: { key: string; value: string }) => ticketConfigsApi.update(key, value),
     onSuccess: () => {
       toast.success("Configuration updated")
       qc.invalidateQueries({ queryKey: queryKeys.tickets.configs })
@@ -227,7 +227,7 @@ export function useUpdateTicketConfig() {
 export function useResetTicketConfig() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (key: string) => configsApi.reset(key),
+    mutationFn: (key: string) => ticketConfigsApi.reset(key),
     onSuccess: () => {
       toast.success("Reset to default")
       qc.invalidateQueries({ queryKey: queryKeys.tickets.configs })
