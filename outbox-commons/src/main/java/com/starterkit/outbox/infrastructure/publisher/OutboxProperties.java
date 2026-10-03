@@ -4,51 +4,56 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * Configuration properties for the Transactional Outbox Pattern.
- *
- * Binds to the `outbox.*` prefix:
- *
- *   outbox.enabled            - master switch (default: true)
- *   outbox.exchange           - RabbitMQ exchange (default: starterkit.events)
- *   outbox.source-service     - this service's name for event sourcing
- *   outbox.retention-days     - cleanup retention for PUBLISHED events
- *
- *   outbox.publisher.enabled      - scheduler switch
- *   outbox.publisher.interval-ms  - scheduler fixed delay
- *   outbox.publisher.batch-size   - events per poll cycle
- */
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "outbox")
 public class OutboxProperties {
 
-    /** RabbitMQ exchange to publish to */
     private String exchange = "starterkit.events";
 
-    /** Source service name (e.g. "auth-service") */
     private String sourceService = "unknown-service";
 
-    /** Master enable/disable for the entire outbox infrastructure */
     private boolean enabled = true;
 
-    /** Cleanup: keep PUBLISHED events for N days */
     private int retentionDays = 7;
 
-    /** Publisher-specific settings */
+    /**
+     * Unique instance identifier for claim tracking.
+     * Defaults to hostname + PID. Override via OUTBOX_INSTANCE_ID env var
+     * in multi-replica deployments.
+     */
+    private String instanceId = defaultInstanceId();
+
+    /**
+     * How long a claimed event stays locked before being reclaimed.
+     * Should be longer than the max time to publish (RabbitMQ confirm timeout).
+     */
+    private int leaseSeconds = 60;
+
     private final Publisher publisher = new Publisher();
+
+    private static String defaultInstanceId() {
+        String host;
+        try {
+            host = java.net.InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            host = "unknown-host";
+        }
+        long pid = ProcessHandle.current().pid();
+        return host + "-" + pid;
+    }
 
     @Getter
     @Setter
     public static class Publisher {
 
-        /** Enable/disable the scheduled publisher */
         private boolean enabled = true;
 
-        /** Scheduler delay in milliseconds */
         private long intervalMs = 5000;
 
-        /** Maximum events fetched per poll cycle */
         private int batchSize = 100;
+
+        /** How often the reclaim job runs (resets expired CLAIMED → PENDING). */
+        private long reclaimIntervalMs = 60_000;
     }
 }

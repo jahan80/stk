@@ -26,8 +26,14 @@ import java.util.UUID;
  * Persisted in the same transaction as the business entity.
  * Published asynchronously by OutboxPublisher.
  *
- * Schema is set at runtime via Hibernate's default_schema.
- * Each service has its own table: auth.outbox_events, ticket.outbox_events, etc.
+ * Multi-instance safety is achieved via atomic claim:
+ *   1. Publisher does UPDATE ... WHERE status=PENDING ... RETURNING *
+ *      (with FOR UPDATE SKIP LOCKED inside subquery).
+ *   2. Row becomes CLAIMED with claimed_by + locked_until.
+ *   3. Publisher sends to RabbitMQ.
+ *   4. On success → PUBLISHED. On failure → PENDING with backoff.
+ *   5. If publisher dies before (4), reclaim job resets expired CLAIMED
+ *      rows back to PENDING after locked_until passes.
  */
 @Entity
 @Table(
@@ -35,7 +41,8 @@ import java.util.UUID;
     indexes = {
         @Index(name = "idx_outbox_status_next_retry", columnList = "status,next_retry_at"),
         @Index(name = "idx_outbox_created_at", columnList = "created_at"),
-        @Index(name = "idx_outbox_aggregate", columnList = "aggregate_type,aggregate_id")
+        @Index(name = "idx_outbox_aggregate", columnList = "aggregate_type,aggregate_id"),
+        @Index(name = "idx_outbox_claim", columnList = "status,locked_until")
     }
 )
 @Getter
@@ -88,6 +95,17 @@ public class OutboxEvent {
     @Column(name = "next_retry_at")
     private Instant nextRetryAt;
 
+    // ===== Claim fields (multi-instance safety) =====
+
+    @Column(name = "claimed_by", length = 100)
+    private String claimedBy;
+
+    @Column(name = "claimed_at")
+    private Instant claimedAt;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     @PrePersist
     protected void onCreate() {
         if (eventId == null) eventId = UUID.randomUUID();
@@ -95,12 +113,15 @@ public class OutboxEvent {
         if (nextRetryAt == null) nextRetryAt = createdAt;
     }
 
-    // ===== Helpers =====
+    // ===== State transitions =====
 
     public void markPublished() {
         this.status = OutboxStatus.PUBLISHED;
         this.publishedAt = Instant.now();
         this.lastError = null;
+        this.claimedBy = null;
+        this.claimedAt = null;
+        this.lockedUntil = null;
     }
 
     public void markFailed(String error) {
@@ -109,29 +130,23 @@ public class OutboxEvent {
                 ? error.substring(0, 1000)
                 : error;
 
-        // At-least-once semantics: never give up.
-        // Keep retrying with capped exponential backoff.
-        // Truly unrecoverable events should be detected via
-        // monitoring on `attempts` and handled operationally.
+        // Back to PENDING for retry. Clear claim.
         this.status = OutboxStatus.PENDING;
         this.nextRetryAt = calculateNextRetry(this.attempts);
+        this.claimedBy = null;
+        this.claimedAt = null;
+        this.lockedUntil = null;
     }
 
     /**
-     * Exponential backoff:
+     * Exponential backoff with 1-hour cap.
      *   attempt 1 → 5s
      *   attempt 2 → 30s
      *   attempt 3 → 2m
      *   attempt 4 → 10m
-     *   attempt 5 → 1h
+     *   attempt 5+ → 1h
      */
     private Instant calculateNextRetry(int attempts) {
-        // Exponential backoff with 1-hour cap.
-        // attempt 1 -> 5s
-        // attempt 2 -> 30s
-        // attempt 3 -> 2m
-        // attempt 4 -> 10m
-        // attempt 5+ -> 1h (cap)
         long seconds = switch (Math.min(attempts, 5)) {
             case 1 -> 5;
             case 2 -> 30;

@@ -14,38 +14,54 @@ import java.util.Optional;
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
 
     /**
-     * Find PENDING events whose next_retry_at is now or past.
+     * Atomically claim a batch of PENDING events.
      *
-     * Uses PostgreSQL FOR UPDATE SKIP LOCKED to prevent multiple publisher
-     * instances from picking the same event. If another transaction has
-     * already locked a row, it is skipped.
+     * The inner SELECT uses FOR UPDATE SKIP LOCKED so concurrent publishers
+     * never claim the same row. The outer UPDATE sets status=CLAIMED and
+     * fills claimed_by / locked_until so the row is protected even after
+     * this transaction commits.
      *
-     * MUST be called inside a @Transactional context.
+     * Caller must be inside a transaction.
      */
     @Query(value = """
-        SELECT * FROM outbox_events
-        WHERE status = :status
-          AND next_retry_at <= :now
-        ORDER BY created_at ASC
-        LIMIT :batchSize
-        FOR UPDATE SKIP LOCKED
+        UPDATE outbox_events
+        SET status = 'CLAIMED',
+            claimed_by = :instanceId,
+            claimed_at = NOW(),
+            locked_until = NOW() + (:leaseSeconds * INTERVAL '1 second')
+        WHERE id IN (
+            SELECT id FROM outbox_events
+            WHERE status = 'PENDING'
+              AND next_retry_at <= NOW()
+            ORDER BY created_at ASC
+            LIMIT :batchSize
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *
         """, nativeQuery = true)
-    List<OutboxEvent> lockPendingForPublish(
-            @Param("status") String status,
-            @Param("now") Instant now,
-            @Param("batchSize") int batchSize);
+    List<OutboxEvent> claimBatch(
+            @Param("instanceId") String instanceId,
+            @Param("batchSize") int batchSize,
+            @Param("leaseSeconds") int leaseSeconds);
 
     /**
-     * Lock a single event row for publishing.
-     * Returns empty if the row is already locked by another transaction
-     * or does not exist.
+     * Recover expired CLAIMED events (publisher crashed).
+     * Resets them back to PENDING so another instance can retry.
      */
+    @Modifying
     @Query(value = """
-        SELECT * FROM outbox_events
-        WHERE id = :id
-        FOR UPDATE SKIP LOCKED
+        UPDATE outbox_events
+        SET status = 'PENDING',
+            claimed_by = NULL,
+            claimed_at = NULL,
+            locked_until = NULL,
+            last_error = COALESCE(last_error, 'Reclaimed after lease expiration')
+        WHERE status = 'CLAIMED'
+          AND locked_until < NOW()
         """, nativeQuery = true)
-    Optional<OutboxEvent> lockById(@Param("id") Long id);
+    int reclaimExpired();
+
+    Optional<OutboxEvent> findByIdAndClaimedBy(Long id, String claimedBy);
 
     /**
      * Delete PUBLISHED events older than cutoff (cleanup).

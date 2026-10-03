@@ -1,5 +1,6 @@
 package com.starterkit.outbox.infrastructure.publisher;
 
+import com.starterkit.outbox.domain.entity.OutboxEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -9,19 +10,12 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Polls outbox_events table and publishes pending events to RabbitMQ.
+ * Polls outbox_events and publishes pending events to RabbitMQ.
  *
- * Design: two-phase publishing (fetch -> per-event TX) to avoid:
- *   - Long transactions holding DB locks
- *   - Inconsistency when one event fails after others succeeded
- *
- * Each event is published in its own REQUIRES_NEW transaction
- * (delegated to OutboxPublisherWorker).
- *
- * Controlled by:
- *   outbox.publisher.enabled     (default: true)
- *   outbox.publisher.interval-ms (default: 5000)
- *   outbox.publisher.batch-size  (default: 100)
+ * Multi-instance safe:
+ *   - claimBatch() atomically claims rows (PENDING → CLAIMED).
+ *   - Each claimed row is only processed by the claiming instance.
+ *   - A separate OutboxReclaimJob recovers expired claims.
  */
 @Slf4j
 @Component
@@ -38,29 +32,34 @@ public class OutboxPublisher {
 
     @Scheduled(fixedDelayString = "${outbox.publisher.interval-ms:5000}")
     public void publishPendingEvents() {
-        List<Long> pendingIds = worker.fetchPendingIds(properties.getPublisher().getBatchSize());
+        List<OutboxEvent> claimed = worker.claimBatch(
+                properties.getPublisher().getBatchSize()
+        );
 
-        if (pendingIds.isEmpty()) {
+        if (claimed.isEmpty()) {
             return;
         }
 
-        log.debug("Outbox: found {} pending event(s)", pendingIds.size());
+        log.debug("Outbox: claimed {} event(s) for instance {}",
+                claimed.size(), properties.getInstanceId());
 
         int successCount = 0;
         int failCount = 0;
 
-        for (Long id : pendingIds) {
+        for (OutboxEvent event : claimed) {
             try {
-                worker.publishOne(id);
+                worker.publishClaimed(event);
                 successCount++;
             } catch (Exception ex) {
-                worker.markFailed(id, ex);
+                // publishClaimed already handles markFailed internally
                 failCount++;
+                log.error("Outbox: unexpected error for eventId={}",
+                        event.getEventId(), ex);
             }
         }
 
         if (successCount > 0 || failCount > 0) {
-            log.info("Outbox published batch: success={}, failed={}", successCount, failCount);
+            log.info("Outbox claimed batch: success={}, failed={}", successCount, failCount);
         }
     }
 }

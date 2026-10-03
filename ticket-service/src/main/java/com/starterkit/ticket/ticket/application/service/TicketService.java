@@ -179,12 +179,11 @@ public class TicketService {
 
         notifyStatusChange(saved, old, TicketStatus.CLOSED, user.getId());
 
-        // Email notification (best-effort, non-blocking w.r.t. TX)
-        sendTicketEmail(
-                saved,
-                "Ticket closed: " + saved.getTicketNumber(),
-                "Your ticket \"" + saved.getTitle() + "\" has been closed."
-        );
+        // Email notification: no recipient email available in ticket-service.
+        // The command is designed to go through outbox when we have it.
+        // TODO: fetch email via /auth/users/{id}/contact and call enqueueTicketEmail().
+        log.debug("Email skipped for closed ticket {} (no email available)",
+                saved.getTicketNumber());
 
         return toResponse(saved, true);
     }
@@ -220,11 +219,8 @@ public class TicketService {
 
         notifyStatusChange(saved, old, newStatus, user.getId());
 
-        sendTicketEmail(
-                saved,
-                String.format("Ticket %s: %s → %s", saved.getTicketNumber(), old, newStatus),
-                "Status updated for ticket \"" + saved.getTitle() + "\""
-        );
+        log.debug("Email skipped for status change on ticket {} (no email available)",
+                saved.getTicketNumber());
 
         return toResponse(saved, true);
     }
@@ -291,12 +287,8 @@ public class TicketService {
                 "/tickets/" + saved.getId()
         );
 
-        // Email owner (if different from assigner)
-        sendTicketEmail(
-                saved,
-                "Ticket assigned: " + saved.getTicketNumber(),
-                "Your ticket \"" + saved.getTitle() + "\" has been assigned."
-        );
+        log.debug("Email skipped for assignment of ticket {} (no email available)",
+                saved.getTicketNumber());
 
         return toResponse(saved, true);
     }
@@ -387,25 +379,33 @@ public class TicketService {
     // =====================================================
 
     /**
-     * Email notification is intentionally NOT sent from ticket-service.
+     * Enqueue an email notification through the transactional outbox.
      *
-     * Rationale: ticket-service does not have the owner's email — it only
-     * stores user IDs. Looking it up would require a synchronous call to
-     * auth-service, which couples the two services and adds latency.
+     * The command is persisted in the same transaction as the ticket
+     * change, then asynchronously published to RabbitMQ → notif-service.
+     * This guarantees at-least-once delivery even if RabbitMQ is down.
      *
-     * Instead:
-     *   - In-app notifications (ticket.notifications) are created for users
-     *     who can see the ticket.
-     *   - If email is needed, an integration test should verify that
-     *     auth-service can fetch contact info via a dedicated internal
-     *     endpoint. This is tracked as a follow-up (see ARCHITECTURE.md).
-     *
-     * TODO: Add /auth/users/{id}/contact (service-to-service only) and
-     *       wire it here when an async notif flow is available.
+     * Note: the "to" address must be provided by the caller. When we only
+     * have a userId, we currently skip (no synchronous call to auth-service).
+     * The dedicated /auth/users/{id}/contact endpoint (service-to-service)
+     * is tracked as a follow-up.
      */
-    private void sendTicketEmail(Ticket ticket, String subject, String body) {
-        log.debug("Email skipped (no email in ticket-service): ticket={}",
-                ticket.getTicketNumber());
+    private void enqueueTicketEmail(String to, String subject, String body, Long relatedUserId) {
+        if (to == null || to.isBlank()) {
+            log.debug("Skipping email: no recipient (userId={})", relatedUserId);
+            return;
+        }
+        try {
+            eventPublisher.publish(new NotifSendEmailEvent(
+                    to, subject, body, relatedUserId
+            ));
+            log.debug("Email command enqueued via outbox: to={}, subject={}", to, subject);
+        } catch (Exception ex) {
+            // Failing to enqueue the outbox row must roll back the ticket
+            // transaction. We re-throw to preserve atomicity.
+            log.error("Failed to enqueue email command for ticket", ex);
+            throw ex;
+        }
     }
 
     // =====================================================

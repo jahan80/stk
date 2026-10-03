@@ -51,7 +51,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=auth,public
       SPRING_DATASOURCE_USERNAME: sa
       SPRING_DATASOURCE_PASSWORD: sa
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -79,7 +79,7 @@ services:
     ports:
       - "8082:8082"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=audit,public
       SPRING_DATASOURCE_USERNAME: sa
       SPRING_DATASOURCE_PASSWORD: sa
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -103,7 +103,7 @@ services:
     ports:
       - "8083:8083"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=notif,public
       SPRING_DATASOURCE_USERNAME: sa
       SPRING_DATASOURCE_PASSWORD: sa
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -136,7 +136,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=gateway,public
       SPRING_DATASOURCE_USERNAME: sa
       SPRING_DATASOURCE_PASSWORD: sa
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -159,11 +159,10 @@ services:
     build:
       context: .
       dockerfile: ticket-service/Dockerfile
-    container_name: starterkit-ticket-service
     ports:
       - "8084:8084"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=ticket,public
       SPRING_DATASOURCE_USERNAME: sa
       SPRING_DATASOURCE_PASSWORD: sa
       SPRING_RABBITMQ_HOST: rabbitmq
