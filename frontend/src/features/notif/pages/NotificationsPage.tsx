@@ -5,6 +5,7 @@ import { queryKeys } from "@/api/queryKeys"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -21,10 +22,12 @@ export function NotificationsPage() {
   const [channel, setChannel] = useState("")
   const [status, setStatus] = useState("")
   const [selected, setSelected] = useState<Notification | null>(null)
+  const [recipient, setRecipient] = useState("")
 
   const params: NotifSearchParams = {
     channel: channel || undefined,
     status: status || undefined,
+    recipient: recipient || undefined,
     page,
     size: 20,
   }
@@ -58,7 +61,16 @@ export function NotificationsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
+        <div className="relative min-w-[250px] flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by recipient..."
+            value={recipient}
+            onChange={(e) => { setRecipient(e.target.value); setPage(0) }}
+            className="pl-9"
+          />
+        </div>
         <select
           value={channel}
           onChange={(e) => { setChannel(e.target.value); setPage(0) }}
@@ -79,6 +91,15 @@ export function NotificationsPage() {
           <option value="SENT">Sent</option>
           <option value="FAILED">Failed</option>
         </select>
+        {(channel || status || recipient) && (
+          <Button
+            variant="outline"
+            onClick={() => { setChannel(""); setStatus(""); setRecipient(""); setPage(0) }}
+          >
+            <X className="mr-2 h-4 w-4" />
+            Clear
+          </Button>
+        )}
       </div>
 
       <Card>

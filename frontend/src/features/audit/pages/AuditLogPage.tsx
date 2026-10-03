@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, FileText, ChevronLeft, ChevronRight, X, ExternalLink } from "lucide-react"
+import { Search, FileText, ChevronLeft, ChevronRight, X, ExternalLink, Calendar } from "lucide-react"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 
 export function AuditLogPage() {
@@ -16,10 +16,14 @@ export function AuditLogPage() {
   const [eventType, setEventType] = useState("")
   const [source, setSource] = useState("")
   const [selectedTrace, setSelectedTrace] = useState<string | null>(null)
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
 
   const { data, isLoading } = useAuditEvents({
     eventType: eventType || undefined,
     source: source || undefined,
+    from: fromDate ? new Date(fromDate).toISOString() : undefined,
+    to: toDate ? new Date(toDate + "T23:59:59").toISOString() : undefined,
     page,
     size: 20,
   })
@@ -34,6 +38,8 @@ export function AuditLogPage() {
   const clearFilters = () => {
     setEventType("")
     setSource("")
+    setFromDate("")
+    setToDate("")
     setPage(0)
   }
 
@@ -87,6 +93,24 @@ export function AuditLogPage() {
               <option value="api-gateway">api-gateway</option>
               <option value="notif-service">notif-service</option>
             </select>
+          </div>
+          <div className="space-y-2">
+            <Label>From</Label>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => { setFromDate(e.target.value); setPage(0) }}
+              className="w-[160px]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>To</Label>
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => { setToDate(e.target.value); setPage(0) }}
+              className="w-[160px]"
+            />
           </div>
           <Button variant="outline" onClick={clearFilters}>
             <X className="mr-2 h-4 w-4" />
