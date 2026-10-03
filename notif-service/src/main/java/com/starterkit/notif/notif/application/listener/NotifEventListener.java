@@ -9,12 +9,23 @@ import com.starterkit.notif.notif.domain.repository.NotificationRepository;
 import com.starterkit.notif.notif.infrastructure.config.RabbitMqConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Consumes notification events from the notif.events queue.
+ *
+ * Exception policy:
+ *   - AmqpRejectAndDontRequeueException → straight to DLQ (no retry)
+ *     Used for: malformed messages, unknown event types, invalid event IDs.
+ *   - Other exceptions → requeue with Spring AMQP retry (up to 3 attempts)
+ *     Used for: transient failures (DB down, provider timeout).
+ *   - After max retries → DLX → DLQ (bounded: 7d TTL, 10k max).
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -32,35 +43,52 @@ public class NotifEventListener {
                 message.getSource(),
                 message.getTraceId());
 
+        // ===== Validate event ID =====
         UUID eventId;
         try {
             eventId = UUID.fromString(message.getEventId());
         } catch (Exception ex) {
-            log.error("Invalid eventId in message, rejecting: {}", message.getEventId(), ex);
-            throw new IllegalArgumentException("Invalid eventId: " + message.getEventId());
+            log.error("Invalid eventId in message, rejecting to DLQ: {}", message.getEventId(), ex);
+            throw new AmqpRejectAndDontRequeueException(
+                    "Invalid eventId: " + message.getEventId(), ex);
         }
 
-        // Idempotency guard: skip if this event has already been processed.
-        // The UNIQUE constraint on event_id is the ultimate guard; this is
-        // a fast pre-check for the common case (duplicate delivery).
+        // ===== Validate event type =====
+        if (message.getEventType() == null || message.getEventType().isBlank()) {
+            log.error("Missing event type, rejecting to DLQ: eventId={}", eventId);
+            throw new AmqpRejectAndDontRequeueException(
+                    "Missing event type for eventId: " + eventId);
+        }
+
+        // ===== Idempotency guard =====
+        // Fast pre-check for the common duplicate-delivery case.
+        // The UNIQUE constraint on event_id is the ultimate guard; if two
+        // consumers race, one will win and the other gets a constraint
+        // violation which we treat as "already processed" (see catch below).
         if (notificationRepository.existsByEventId(eventId)) {
             log.info("Duplicate event detected, skipping: eventId={}, type={}",
                     eventId, message.getEventType());
             return;
         }
 
+        // ===== Dispatch by type =====
         try {
             switch (message.getEventType()) {
                 case "SEND_SMS" -> handleSms(message, eventId);
                 case "SEND_EMAIL" -> handleEmail(message, eventId);
                 case "SEND_PUSH" -> handlePush(message, eventId);
                 default -> {
-                    log.warn("Unknown notif event type: {} (eventId={})",
+                    // Unknown event type: this is a producer bug.
+                    // Do NOT silently ACK — route to DLQ so ops can inspect.
+                    log.error("Unknown notif event type: {} (eventId={}), rejecting to DLQ",
                             message.getEventType(), eventId);
-                    // Unknown event type: don't retry. Could route to DLQ,
-                    // but for now we just log and ACK.
+                    throw new AmqpRejectAndDontRequeueException(
+                            "Unknown notif event type: " + message.getEventType());
                 }
             }
+        } catch (AmqpRejectAndDontRequeueException ex) {
+            // Already classified as "do not retry" — let it propagate to DLQ.
+            throw ex;
         } catch (Exception ex) {
             log.error("Failed to process notif event: eventId={}, type={}",
                     eventId, message.getEventType(), ex);

@@ -67,3 +67,6 @@ all_project_files.txt
 
 # Outbox backups
 .backup-outbox-*
+
+# Listener backups
+.backup-listener-*
