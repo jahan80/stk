@@ -76,3 +76,4 @@ all_project_files.txt
 # All local backups
 .backup-*/
 .backup-*
+.backup-*/
