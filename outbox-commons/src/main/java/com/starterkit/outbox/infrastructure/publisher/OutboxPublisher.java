@@ -17,6 +17,11 @@ import java.util.List;
  *
  * Each event is published in its own REQUIRES_NEW transaction
  * (delegated to OutboxPublisherWorker).
+ *
+ * Controlled by:
+ *   outbox.publisher.enabled     (default: true)
+ *   outbox.publisher.interval-ms (default: 5000)
+ *   outbox.publisher.batch-size  (default: 100)
  */
 @Slf4j
 @Component
@@ -29,11 +34,11 @@ import java.util.List;
 public class OutboxPublisher {
 
     private final OutboxPublisherWorker worker;
-    private final OutboxPublisherProperties properties;
+    private final OutboxProperties properties;
 
     @Scheduled(fixedDelayString = "${outbox.publisher.interval-ms:5000}")
     public void publishPendingEvents() {
-        List<Long> pendingIds = worker.fetchPendingIds(properties.getBatchSize());
+        List<Long> pendingIds = worker.fetchPendingIds(properties.getPublisher().getBatchSize());
 
         if (pendingIds.isEmpty()) {
             return;

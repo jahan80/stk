@@ -20,7 +20,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @AutoConfiguration
 @ConditionalOnProperty(name = "outbox.enabled", havingValue = "true", matchIfMissing = true)
 @ComponentScan(basePackages = "com.starterkit.outbox")
-@EnableConfigurationProperties(OutboxPublisherProperties.class)
+@EnableConfigurationProperties(OutboxProperties.class)
 @EnableScheduling
 public class OutboxAutoConfig {
 }

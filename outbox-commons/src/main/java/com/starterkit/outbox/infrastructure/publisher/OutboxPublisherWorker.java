@@ -23,7 +23,7 @@ public class OutboxPublisherWorker {
 
     private final OutboxEventRepository repository;
     private final RabbitTemplate rabbitTemplate;
-    private final OutboxPublisherProperties properties;
+    private final OutboxProperties properties;
 
     @Transactional(readOnly = true)
     public List<Long> fetchPendingIds(int batchSize) {
