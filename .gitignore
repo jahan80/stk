@@ -64,3 +64,6 @@ all_project_files.txt
 # Public keys ARE committed (shared by all services for JWT verification).
 !**/jwt-public.pem
 !**/*-public.pem
+
+# Outbox backups
+.backup-outbox-*
