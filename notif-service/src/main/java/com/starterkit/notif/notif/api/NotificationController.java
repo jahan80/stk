@@ -41,7 +41,7 @@ public class NotificationController {
     ) {
         return responseFactory.success(
                 ApiCode.SUCCESS,
-                notificationService.sendSms(request)
+                notificationService.sendSms(request, UUID.randomUUID())
         );
     }
 
@@ -52,7 +52,7 @@ public class NotificationController {
     ) {
         return responseFactory.success(
                 ApiCode.SUCCESS,
-                notificationService.sendEmail(request)
+                notificationService.sendEmail(request, UUID.randomUUID())
         );
     }
 
@@ -63,7 +63,7 @@ public class NotificationController {
     ) {
         return responseFactory.success(
                 ApiCode.SUCCESS,
-                notificationService.sendPush(request)
+                notificationService.sendPush(request, UUID.randomUUID())
         );
     }
 
