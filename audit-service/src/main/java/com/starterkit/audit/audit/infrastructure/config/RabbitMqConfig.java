@@ -64,6 +64,33 @@ public class RabbitMqConfig {
                 .with(GATEWAY_ROUTING);
     }
 
+    // ==================== DEAD LETTER ====================
+
+    public static final String DLX_EXCHANGE = "starterkit.dlx";
+    public static final String DLQ_QUEUE = "audit.dlq";
+    public static final String DLQ_ROUTING = "audit.dead";
+
+    @Bean
+    public TopicExchange dlxExchange() {
+        return new TopicExchange(DLX_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Queue auditDlq() {
+        // Bounded DLQ: cap at 10_000 messages and 7-day TTL.
+        return QueueBuilder.durable(DLQ_QUEUE)
+                .withArgument("x-message-ttl", 7L * 24 * 60 * 60 * 1000)
+                .withArgument("x-max-length", 10_000)
+                .build();
+    }
+
+    @Bean
+    public Binding auditDlqBinding(Queue auditDlq, TopicExchange dlxExchange) {
+        return BindingBuilder.bind(auditDlq)
+                .to(dlxExchange)
+                .with(DLQ_ROUTING);
+    }
+
     // ==================== CONVERTERS ====================
 
     @Bean
