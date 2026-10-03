@@ -33,6 +33,14 @@ public class Notification {
     @Column(name = "notification_id", nullable = false, unique = true)
     private UUID notificationId;
 
+    /**
+     * Source event UUID (from the producer service).
+     * Used for idempotency: if the same event arrives twice,
+     * only one notification should be sent.
+     */
+    @Column(name = "event_id", nullable = false, unique = true)
+    private UUID eventId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Channel channel;
