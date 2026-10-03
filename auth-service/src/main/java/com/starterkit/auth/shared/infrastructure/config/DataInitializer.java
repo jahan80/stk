@@ -66,8 +66,10 @@ public class DataInitializer {
 
             userRepository.save(admin);
 
-            log.warn("⚠️  Default admin created: username='{}', password='{}'. " +
-                     "CHANGE THIS BEFORE PRODUCTION!", username, password);
+            // Never log the password — only the username.
+            log.warn("⚠️  Default admin created: username='{}'. " +
+                    "Verify app.default-admin.password config. " +
+                    "CHANGE THIS BEFORE PRODUCTION!", username);
         };
     }
 }

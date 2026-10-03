@@ -36,8 +36,7 @@ public class JwtService {
     private static final String CLAIM_PERMISSIONS = "permissions";
     private static final String CLAIM_TYPE     = "type";
 
-    private static final String TOKEN_TYPE_ACCESS  = "access";
-    private static final String TOKEN_TYPE_REFRESH = "refresh";
+    private static final String TOKEN_TYPE_ACCESS = "access";
 
     private final JwtProperties jwtProperties;
     private final ResourceLoader resourceLoader;
@@ -165,7 +164,8 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
         } catch (JwtException ex) {
-            log.debug("JWT parsing failed: {}", ex.getMessage());
+            // WARN level so token tampering attempts are visible in logs.
+            log.warn("JWT parse/verify failed: {}", ex.getMessage());
             throw ex;
         }
     }

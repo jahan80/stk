@@ -150,20 +150,26 @@ public class TokenService {
             long expiresInSeconds
     ) {}
 
+    /**
+     * Revokes the given refresh token.
+     *
+     * This operation is IDEMPOTENT: if the token does not exist, or is
+     * already revoked, or has expired, we simply return without error.
+     * Logout should never fail from the client's perspective.
+     */
     @Transactional
     public void logout(String refreshTokenValue) {
 
         String tokenHash = hashToken(refreshTokenValue);
 
-        RefreshToken existing = refreshTokenRepository
-                .findByTokenHash(tokenHash)
-                .orElseThrow(() -> new LoginException(ApiCode.INVALID_CREDENTIALS));
-
-        if (!existing.isRevoked()) {
-            existing.setRevoked(true);
-            existing.setRevokedAt(Instant.now());
-            refreshTokenRepository.save(existing);
-        }
+        refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(existing -> {
+            if (!existing.isRevoked()) {
+                existing.setRevoked(true);
+                existing.setRevokedAt(Instant.now());
+                refreshTokenRepository.save(existing);
+                log.info("Refresh token revoked for user {}", existing.getUser().getId());
+            }
+        });
     }
 
 
