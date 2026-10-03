@@ -19,17 +19,33 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
 
     /**
      * Combined-filter search.
+     *
      * All filters are optional and AND-combined.
      * Passing null for any filter disables that predicate.
+     *
+     * NOTE: This is a native query with explicit casts because PostgreSQL
+     * cannot infer parameter types inside `:param IS NULL` expressions.
+     * Without the casts, PostgreSQL raises:
+     *   "could not determine data type of parameter $N"
      */
-    @Query("""
-        SELECT a FROM AuditEvent a
-        WHERE (:eventType IS NULL OR a.eventType = :eventType)
-          AND (:source IS NULL OR a.source = :source)
-          AND (:from IS NULL OR a.occurredAt >= :from)
-          AND (:to IS NULL OR a.occurredAt <= :to)
-        ORDER BY a.occurredAt DESC
-    """)
+    @Query(
+            value = """
+                SELECT * FROM audit.audit_events
+                WHERE (CAST(:eventType AS TEXT) IS NULL OR event_type = CAST(:eventType AS TEXT))
+                  AND (CAST(:source AS TEXT) IS NULL OR source = CAST(:source AS TEXT))
+                  AND (CAST(:from AS TIMESTAMPTZ) IS NULL OR occurred_at >= CAST(:from AS TIMESTAMPTZ))
+                  AND (CAST(:to AS TIMESTAMPTZ) IS NULL OR occurred_at <= CAST(:to AS TIMESTAMPTZ))
+                ORDER BY occurred_at DESC
+                """,
+            countQuery = """
+                SELECT COUNT(*) FROM audit.audit_events
+                WHERE (CAST(:eventType AS TEXT) IS NULL OR event_type = CAST(:eventType AS TEXT))
+                  AND (CAST(:source AS TEXT) IS NULL OR source = CAST(:source AS TEXT))
+                  AND (CAST(:from AS TIMESTAMPTZ) IS NULL OR occurred_at >= CAST(:from AS TIMESTAMPTZ))
+                  AND (CAST(:to AS TIMESTAMPTZ) IS NULL OR occurred_at <= CAST(:to AS TIMESTAMPTZ))
+                """,
+            nativeQuery = true
+    )
     Page<AuditEvent> search(
             @Param("eventType") String eventType,
             @Param("source") String source,
