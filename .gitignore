@@ -70,3 +70,9 @@ all_project_files.txt
 
 # Listener backups
 .backup-listener-*
+# Filter backups
+.backup-filters-*
+
+# All local backups
+.backup-*/
+.backup-*
