@@ -17,9 +17,23 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Orchestrates notification delivery.
+ *
+ * Flow for each send:
+ *   1. Persist PENDING row (own short TX).
+ *   2. Call provider OUTSIDE any transaction.
+ *   3. Mark SENT or FAILED (own short TX).
+ *   4. On provider exception: mark FAILED, then re-throw so the
+ *      caller (RabbitMQ listener) can decide on retry / DLQ.
+ *
+ * This guarantees:
+ *   - Provider failures are recorded (FAILED row).
+ *   - A slow provider does not hold a DB transaction.
+ *   - Duplicate events are handled by the listener (eventId check).
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -27,89 +41,101 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final NotificationPersister persister;
     private final SmsProvider smsProvider;
     private final EmailProvider emailProvider;
     private final PushProvider pushProvider;
 
-    @Transactional
-    public NotificationResponse sendSms(SmsRequest request) {
-        log.info("Sending SMS to {}", request.getTo());
+    // =====================================================
+    // Public API: send (used by both REST and MQ consumer)
+    // =====================================================
 
-        Notification notification = new Notification();
-        notification.setNotificationId(UUID.randomUUID());
-        notification.setChannel(Notification.Channel.SMS);
-        notification.setRecipient(request.getTo());
-        notification.setBody(request.getMessage());
-        notification.setStatus(Notification.Status.PENDING);
-        notification.setProvider(smsProvider.providerName());
-        notification.setMetadata(request.getMetadata());
+    public NotificationResponse sendSms(SmsRequest request, UUID eventId) {
+        Notification pending = persister.createPending(
+                eventId,
+                Notification.Channel.SMS,
+                request.getTo(),
+                null,
+                request.getMessage(),
+                smsProvider.providerName(),
+                request.getMetadata()
+        );
 
-        // Send via provider
-        ProviderResponse response = smsProvider.send(request.getTo(), request.getMessage());
+        deliver(pending.getId(), () ->
+                smsProvider.send(request.getTo(), request.getMessage())
+        );
 
-        applyProviderResponse(notification, response);
-
-        Notification saved = notificationRepository.save(notification);
-        log.info("SMS notification saved: id={}, status={}", saved.getId(), saved.getStatus());
-
-        return toResponse(saved);
+        return toResponse(reload(pending.getId()));
     }
 
-    @Transactional
-    public NotificationResponse sendEmail(EmailRequest request) {
-        log.info("Sending email to {}", request.getTo());
-
-        Notification notification = new Notification();
-        notification.setNotificationId(UUID.randomUUID());
-        notification.setChannel(Notification.Channel.EMAIL);
-        notification.setRecipient(request.getTo());
-        notification.setSubject(request.getSubject());
-        notification.setBody(request.getBody());
-        notification.setStatus(Notification.Status.PENDING);
-        notification.setProvider(emailProvider.providerName());
-        notification.setMetadata(request.getMetadata());
-
-        ProviderResponse response = emailProvider.send(
+    public NotificationResponse sendEmail(EmailRequest request, UUID eventId) {
+        Notification pending = persister.createPending(
+                eventId,
+                Notification.Channel.EMAIL,
                 request.getTo(),
                 request.getSubject(),
-                request.getBody()
+                request.getBody(),
+                emailProvider.providerName(),
+                request.getMetadata()
         );
 
-        applyProviderResponse(notification, response);
+        deliver(pending.getId(), () ->
+                emailProvider.send(request.getTo(), request.getSubject(), request.getBody())
+        );
 
-        Notification saved = notificationRepository.save(notification);
-        log.info("Email notification saved: id={}, status={}", saved.getId(), saved.getStatus());
-
-        return toResponse(saved);
+        return toResponse(reload(pending.getId()));
     }
 
-    @Transactional
-    public NotificationResponse sendPush(PushRequest request) {
-        log.info("Sending push to {}", request.getDeviceToken());
-
-        Notification notification = new Notification();
-        notification.setNotificationId(UUID.randomUUID());
-        notification.setChannel(Notification.Channel.PUSH);
-        notification.setRecipient(request.getDeviceToken());
-        notification.setSubject(request.getTitle());
-        notification.setBody(request.getBody());
-        notification.setStatus(Notification.Status.PENDING);
-        notification.setProvider(pushProvider.providerName());
-        notification.setMetadata(request.getMetadata());
-
-        ProviderResponse response = pushProvider.send(
+    public NotificationResponse sendPush(PushRequest request, UUID eventId) {
+        Notification pending = persister.createPending(
+                eventId,
+                Notification.Channel.PUSH,
                 request.getDeviceToken(),
                 request.getTitle(),
-                request.getBody()
+                request.getBody(),
+                pushProvider.providerName(),
+                request.getMetadata()
         );
 
-        applyProviderResponse(notification, response);
+        deliver(pending.getId(), () ->
+                pushProvider.send(request.getDeviceToken(), request.getTitle(), request.getBody())
+        );
 
-        Notification saved = notificationRepository.save(notification);
-        log.info("Push notification saved: id={}, status={}", saved.getId(), saved.getStatus());
-
-        return toResponse(saved);
+        return toResponse(reload(pending.getId()));
     }
+
+    // =====================================================
+    // Delivery orchestration (single source of truth)
+    // =====================================================
+
+    @FunctionalInterface
+    private interface ProviderCall {
+        ProviderResponse execute() throws Exception;
+    }
+
+    private void deliver(Long notificationId, ProviderCall call) {
+        try {
+            ProviderResponse response = call.execute();
+
+            if (response.isSuccess()) {
+                persister.markSent(notificationId, response.getProviderMessageId());
+            } else {
+                persister.markFailed(notificationId, response.getErrorMessage());
+            }
+        } catch (Exception ex) {
+            // Provider threw — record failure, then re-throw so that the
+            // RabbitMQ listener can decide on retry / DLQ.
+            persister.markFailed(notificationId, ex.getMessage());
+            log.error("Provider call failed for notification {}: {}",
+                    notificationId, ex.getMessage(), ex);
+            throw new RuntimeException(
+                    "Provider call failed for notification " + notificationId, ex);
+        }
+    }
+
+    // =====================================================
+    // Queries
+    // =====================================================
 
     public Page<NotificationResponse> search(
             Notification.Channel channel,
@@ -143,15 +169,10 @@ public class NotificationService {
     // Helpers
     // =====================================================
 
-    private void applyProviderResponse(Notification notification, ProviderResponse response) {
-        if (response.isSuccess()) {
-            notification.setStatus(Notification.Status.SENT);
-            notification.setProviderMessageId(response.getProviderMessageId());
-            notification.setSentAt(Instant.now());
-        } else {
-            notification.setStatus(Notification.Status.FAILED);
-            notification.setErrorMessage(response.getErrorMessage());
-        }
+    private Notification reload(Long id) {
+        return notificationRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Notification disappeared after send: " + id));
     }
 
     private NotificationResponse toResponse(Notification n) {

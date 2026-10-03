@@ -68,7 +68,12 @@ public class RabbitMqConfig {
 
     @Bean
     public Queue notifDlq() {
-        return QueueBuilder.durable(DLQ_QUEUE).build();
+        // Bounded DLQ: cap at 10_000 messages and 7-day TTL so a stuck
+        // consumer cannot fill the broker indefinitely.
+        return QueueBuilder.durable(DLQ_QUEUE)
+                .withArgument("x-message-ttl", 7L * 24 * 60 * 60 * 1000)
+                .withArgument("x-max-length", 10_000)
+                .build();
     }
 
     @Bean

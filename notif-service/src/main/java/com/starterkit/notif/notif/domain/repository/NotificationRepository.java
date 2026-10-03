@@ -14,6 +14,15 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     boolean existsByNotificationId(UUID notificationId);
 
+    /**
+     * Idempotency guard: check if an event has already been turned
+     * into a notification. Used by the consumer to skip duplicate
+     * RabbitMQ deliveries.
+     */
+    Optional<Notification> findByEventId(UUID eventId);
+
+    boolean existsByEventId(UUID eventId);
+
     Page<Notification> findByChannel(Notification.Channel channel, Pageable pageable);
 
     Page<Notification> findByStatus(Notification.Status status, Pageable pageable);

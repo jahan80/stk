@@ -42,6 +42,7 @@
     </dependencyManagement>
 
     <modules>
+        <module>outbox-commons</module>
         <module>auth-service</module>
         <module>audit-service</module>
         <module>notif-service</module>

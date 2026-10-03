@@ -25,9 +25,6 @@ logs/
 *.docx
 temp.txt
 
-# JWT keys - NEVER commit private key
-auth-service/src/main/resources/keys/*.pem
-!auth-service/src/main/resources/keys/.gitkeep
 
 # ============================================
 # Added: 2026-09-27 (SMTP integration)
@@ -42,8 +39,6 @@ auth-service/src/main/resources/keys/*.pem
 *.bak.*
 .dockerignore.bak
 
-# JWT keys (private key MUST NOT be committed)
-**/jwt-private.pem
 
 # ============================================
 # Frontend (React + Vite)
@@ -57,3 +52,15 @@ frontend/.env.*
 !frontend/.env.example
 frontend/*.log
 all_project_files.txt
+
+# ============================================
+# JWT Keys
+# ============================================
+# NEVER commit private keys.
+**/jwt-private.pem
+**/*-private.pem
+**/*-private-key.pem
+
+# Public keys ARE committed (shared by all services for JWT verification).
+!**/jwt-public.pem
+!**/*-public.pem
