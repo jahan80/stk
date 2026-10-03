@@ -10,6 +10,7 @@ import type {
   ForgotPasswordRequest,
   ResetPasswordRequest,
   VerifyEmailRequest,
+  VerifyMobileRequest,
 } from "@/types/auth"
 
 export function useLogin() {
@@ -134,6 +135,33 @@ export function useResendVerification() {
   return useMutation({
     mutationFn: (email: string) => authApi.resendEmailVerification(email),
     onSuccess: () => toast.success("Verification code resent! Check your email."),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? "Failed to resend"
+      toast.error(msg)
+    },
+  })
+}
+
+export function useVerifyMobile() {
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: (data: VerifyMobileRequest) => authApi.verifyMobile(data),
+    onSuccess: () => {
+      toast.success("Mobile verified successfully!")
+      navigate("/profile")
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message ?? "Verification failed"
+      toast.error(msg)
+    },
+  })
+}
+
+export function useResendMobileVerification() {
+  return useMutation({
+    mutationFn: (mobileNumber: string) => authApi.resendMobileVerification(mobileNumber),
+    onSuccess: () => toast.success("Verification code resent! Check your SMS."),
     onError: (error: any) => {
       const msg = error?.response?.data?.message ?? "Failed to resend"
       toast.error(msg)
