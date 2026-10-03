@@ -143,19 +143,15 @@ public class NotificationService {
             String recipient,
             Pageable pageable
     ) {
-        Page<Notification> notifications;
+        // All filters are optional and AND-combined.
+        // Normalize blank recipient to null so the query predicate is skipped.
+        String recipientFilter = (recipient != null && !recipient.isBlank())
+                ? recipient.trim()
+                : null;
 
-        if (channel != null) {
-            notifications = notificationRepository.findByChannel(channel, pageable);
-        } else if (status != null) {
-            notifications = notificationRepository.findByStatus(status, pageable);
-        } else if (recipient != null && !recipient.isBlank()) {
-            notifications = notificationRepository.findByRecipient(recipient, pageable);
-        } else {
-            notifications = notificationRepository.findAll(pageable);
-        }
-
-        return notifications.map(this::toResponse);
+        return notificationRepository
+                .search(channel, status, recipientFilter, pageable)
+                .map(this::toResponse);
     }
 
     public NotificationResponse getById(UUID notificationId) {
