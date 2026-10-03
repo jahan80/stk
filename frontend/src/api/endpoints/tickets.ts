@@ -93,7 +93,7 @@ export const ticketsApi = {
 // ===== Configurations =====
 import type { TicketConfiguration } from "@/types/tickets"
 
-export const configsApi = {
+export const ticketConfigsApi = {
   list: () =>
     apiClient.get<ApiResponse<TicketConfiguration[]>>("/tickets/configurations").then((r) => r.data),
 
