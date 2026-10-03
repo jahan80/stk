@@ -272,3 +272,60 @@ export function useActiveRateLimits() {
     queryFn: () => rateLimitsApi.active(),
   })
 }
+
+export function useCreateConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: ConfigurationRequest) => configsApi.create(data),
+    onSuccess: () => {
+      toast.success("Configuration created")
+      qc.invalidateQueries({ queryKey: queryKeys.configs.all })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to create configuration")
+    },
+  })
+}
+
+export function useDeleteConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (key: string) => configsApi.delete(key),
+    onSuccess: () => {
+      toast.success("Configuration deleted")
+      qc.invalidateQueries({ queryKey: queryKeys.configs.all })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to delete configuration")
+    },
+  })
+}
+
+export function useResetAllConfigs() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => configsApi.resetAllToDefault(),
+    onSuccess: () => {
+      toast.success("All configurations reset to defaults")
+      qc.invalidateQueries({ queryKey: queryKeys.configs.all })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to reset all")
+    },
+  })
+}
+
+export function useUpdateRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: RoleRequest }) =>
+      rolesApi.update(id, data),
+    onSuccess: () => {
+      toast.success("Role updated")
+      qc.invalidateQueries({ queryKey: queryKeys.roles.all })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? "Failed to update role")
+    },
+  })
+}

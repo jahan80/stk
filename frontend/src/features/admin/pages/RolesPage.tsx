@@ -1,5 +1,12 @@
 import { useState } from "react"
-import { useRoles, usePermissions, useCreateRole, useDeleteRole, useAssignPermissions } from "../hooks"
+import {
+  useRoles,
+  usePermissions,
+  useCreateRole,
+  useUpdateRole,
+  useDeleteRole,
+  useAssignPermissions,
+} from "../hooks"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,23 +14,37 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Trash2, Shield, Lock, Loader2 } from "lucide-react"
+import { Plus, Trash2, Shield, Lock, Loader2, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { RoleRequest } from "@/types/roles"
 
 export function RolesPage() {
   const { data, isLoading } = useRoles()
   const { data: permData } = usePermissions()
   const createRole = useCreateRole()
+  const updateRole = useUpdateRole()
   const deleteRole = useDeleteRole()
   const assignPerms = useAssignPermissions()
 
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ name: "", description: "" })
+  // Create
+  const [creating, setCreating] = useState(false)
+  const [createForm, setCreateForm] = useState({ name: "", description: "" })
 
+  // Edit
+  const [editing, setEditing] = useState<{ id: number; name: string; description: string } | null>(null)
+
+  // Delete
+  const [deleting, setDeleting] = useState<{ id: number; name: string; systemRole: boolean } | null>(null)
+
+  // Permissions dialog
   const [permDialogOpen, setPermDialogOpen] = useState(false)
   const [selectedRole, setSelectedRole] = useState<number | null>(null)
   const [selectedPermIds, setSelectedPermIds] = useState<number[]>([])
@@ -32,16 +53,35 @@ export function RolesPage() {
   const permissions = permData?.data ?? []
 
   const handleCreate = () => {
-    if (!form.name) return
+    if (!createForm.name) return
     createRole.mutate(
-      { name: form.name, description: form.description },
+      { name: createForm.name, description: createForm.description },
       {
         onSuccess: () => {
-          setOpen(false)
-          setForm({ name: "", description: "" })
+          setCreating(false)
+          setCreateForm({ name: "", description: "" })
         },
       }
     )
+  }
+
+  const handleUpdate = () => {
+    if (!editing) return
+    const data: RoleRequest = {
+      name: editing.name,
+      description: editing.description,
+    }
+    updateRole.mutate(
+      { id: editing.id, data },
+      { onSuccess: () => setEditing(null) }
+    )
+  }
+
+  const handleDelete = () => {
+    if (!deleting) return
+    deleteRole.mutate(deleting.id, {
+      onSuccess: () => setDeleting(null),
+    })
   }
 
   const openPermissionsDialog = (roleId: number, currentPerms: { id: number }[]) => {
@@ -71,45 +111,10 @@ export function RolesPage() {
           <h1 className="text-3xl font-bold">Roles &amp; Permissions</h1>
           <p className="text-muted-foreground">Manage roles and their permissions</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Role
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Role</DialogTitle>
-              <DialogDescription>Role names must be UPPERCASE</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Name *</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
-                  placeholder="MANAGER"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Input
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Manager role"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={createRole.isPending}>
-                {createRole.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { setCreateForm({ name: "", description: "" }); setCreating(true) }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Role
+        </Button>
       </div>
 
       <Tabs defaultValue="roles">
@@ -165,7 +170,20 @@ export function RolesPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditing({
+                                id: r.id,
+                                name: r.name,
+                                description: r.description ?? "",
+                              })}
+                              disabled={r.systemRole}
+                              title={r.systemRole ? "System roles cannot be edited" : "Edit"}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -177,14 +195,11 @@ export function RolesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                if (confirm(`Delete role "${r.name}"?`)) {
-                                  deleteRole.mutate(r.id)
-                                }
-                              }}
+                              onClick={() => setDeleting({ id: r.id, name: r.name, systemRole: r.systemRole })}
                               disabled={r.systemRole}
+                              title={r.systemRole ? "System roles cannot be deleted" : "Delete"}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         </TableCell>
@@ -219,6 +234,107 @@ export function RolesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create Dialog */}
+      <Dialog open={creating} onOpenChange={setCreating}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Role</DialogTitle>
+            <DialogDescription>Role names must be UPPERCASE</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name *</Label>
+              <Input
+                value={createForm.name}
+                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value.toUpperCase() })}
+                placeholder="MANAGER"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input
+                value={createForm.description}
+                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                placeholder="Manager role"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreating(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={createRole.isPending || !createForm.name}>
+              {createRole.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription>
+              Update role name and description
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Name *</Label>
+                <Input
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value.toUpperCase() })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input
+                  value={editing.description}
+                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={updateRole.isPending || !editing?.name}>
+              {updateRole.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the role{" "}
+              <span className="font-mono font-medium">{deleting?.name}</span>.
+              {deleting?.systemRole && (
+                <span className="mt-2 block font-medium text-destructive">
+                  ⚠️ System roles cannot be deleted.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteRole.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteRole.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteRole.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Permissions Dialog */}
       <Dialog open={permDialogOpen} onOpenChange={setPermDialogOpen}>
