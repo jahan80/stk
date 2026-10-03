@@ -99,19 +99,11 @@ public class TicketService {
         Page<Ticket> page;
 
         if (user.isAdmin()) {
-            if (unassignedOnly) {
-                page = ticketRepo.findByAssignedToIsNullOrderByCreatedAtDesc(pageable);
-            } else if (assignedOnly) {
-                page = ticketRepo.findByAssignedToIsNotNullOrderByCreatedAtDesc(pageable);
-            } else if (groupId != null) {
-                page = ticketRepo.findByGroupIdOrderByCreatedAtDesc(groupId, pageable);
-            } else if (status != null) {
-                page = ticketRepo.findByStatusOrderByCreatedAtDesc(status, pageable);
-            } else if (priority != null) {
-                page = ticketRepo.findByPriorityOrderByCreatedAtDesc(priority, pageable);
-            } else {
-                page = ticketRepo.findAllByOrderByCreatedAtDesc(pageable);
-            }
+            // Combined filters: all applied with AND semantics.
+            page = ticketRepo.findWithFilters(
+                    status, priority, groupId,
+                    unassignedOnly, assignedOnly,
+                    pageable);
         } else {
             List<Long> groupIds = access.getUserGroupIds(user.getId());
             page = ticketRepo.findVisibleToUser(user.getId(), groupIds, status, priority, pageable);

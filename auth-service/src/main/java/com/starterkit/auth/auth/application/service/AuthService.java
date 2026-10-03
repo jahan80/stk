@@ -53,9 +53,9 @@ public class AuthService {
 
         registerConfigurationValidator.validate(request);
 
-        Role defaultRole = roleRepository.findByName(DEFAULT_ROLE)
+        Role defaultRole = roleRepository.findByNameAndDeletedAtIsNull(DEFAULT_ROLE)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Default role '" + DEFAULT_ROLE + "' not found in database"
+                        "Default role '" + DEFAULT_ROLE + "' not found (or soft-deleted)"
                 ));
 
         User savedUser = userCreationService.createUser(

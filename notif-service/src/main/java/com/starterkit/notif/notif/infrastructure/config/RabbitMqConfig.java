@@ -70,6 +70,11 @@ public class RabbitMqConfig {
     public Queue notifDlq() {
         // Bounded DLQ: cap at 10_000 messages and 7-day TTL so a stuck
         // consumer cannot fill the broker indefinitely.
+        //
+        // NOTE: This queue has NO consumer registered.
+        // Spring AMQP listeners auto-ACK on success, which would remove
+        // messages from the DLQ. We want them preserved for operator
+        // investigation via the RabbitMQ management UI (port 15672).
         return QueueBuilder.durable(DLQ_QUEUE)
                 .withArgument("x-message-ttl", 7L * 24 * 60 * 60 * 1000)
                 .withArgument("x-max-length", 10_000)

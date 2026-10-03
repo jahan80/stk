@@ -35,19 +35,32 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             @Param("priority") TicketPriority priority,
             Pageable pageable);
 
+    /**
+     * Admin combined-filter search.
+     * All filters are optional and AND-combined.
+     */
+    @Query("""
+        SELECT t FROM Ticket t
+        WHERE (:status IS NULL OR t.status = :status)
+          AND (:priority IS NULL OR t.priority = :priority)
+          AND (:groupId IS NULL OR t.groupId = :groupId)
+          AND (:unassignedOnly = false OR t.assignedTo IS NULL)
+          AND (:assignedOnly = false OR t.assignedTo IS NOT NULL)
+        ORDER BY t.createdAt DESC
+    """)
+    Page<Ticket> findWithFilters(
+            @Param("status") TicketStatus status,
+            @Param("priority") TicketPriority priority,
+            @Param("groupId") Long groupId,
+            @Param("unassignedOnly") boolean unassignedOnly,
+            @Param("assignedOnly") boolean assignedOnly,
+            Pageable pageable);
+
     /** Only own tickets (created by user) */
     Page<Ticket> findByCreatedByOrderByCreatedAtDesc(Long createdBy, Pageable pageable);
 
     /** Assigned to user */
     Page<Ticket> findByAssignedToOrderByCreatedAtDesc(Long assignedTo, Pageable pageable);
-
-    /** Filtered queries (admin) */
-    Page<Ticket> findAllByOrderByCreatedAtDesc(Pageable pageable);
-    Page<Ticket> findByStatusOrderByCreatedAtDesc(TicketStatus status, Pageable pageable);
-    Page<Ticket> findByPriorityOrderByCreatedAtDesc(TicketPriority priority, Pageable pageable);
-    Page<Ticket> findByGroupIdOrderByCreatedAtDesc(Long groupId, Pageable pageable);
-    Page<Ticket> findByAssignedToIsNullOrderByCreatedAtDesc(Pageable pageable);
-    Page<Ticket> findByAssignedToIsNotNullOrderByCreatedAtDesc(Pageable pageable);
 
     // ====== Counters ======
 

@@ -24,6 +24,12 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "User not found: " + username));
 
+        // Reject users whose role has been soft-deleted.
+        if (user.getRole() != null && user.getRole().getDeletedAt() != null) {
+            throw new UsernameNotFoundException(
+                    "User's role has been deleted: " + username);
+        }
+
         return new UserPrincipal(user);
     }
 
@@ -32,6 +38,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByIdWithRole(userId)
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "User not found: " + userId));
+
+        // Reject users whose role has been soft-deleted.
+        if (user.getRole() != null && user.getRole().getDeletedAt() != null) {
+            throw new UsernameNotFoundException(
+                    "User's role has been deleted: " + userId);
+        }
 
         return new UserPrincipal(user);
     }

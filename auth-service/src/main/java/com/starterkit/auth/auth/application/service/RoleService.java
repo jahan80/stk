@@ -53,7 +53,9 @@ public class RoleService {
 
     @Transactional
     public RoleResponse create(RoleRequest request) {
-        if (roleRepository.existsByName(request.getName())) {
+        // Only consider non-deleted roles for the "already exists" check.
+        // A soft-deleted role with the same name should NOT block a new one.
+        if (roleRepository.existsByNameAndDeletedAtIsNull(request.getName())) {
             throw new RoleAlreadyExistsException(request.getName());
         }
 
@@ -104,6 +106,10 @@ public class RoleService {
     public RoleResponse assignPermissions(Long roleId, Set<Long> permissionIds) {
         Role role = roleRepository.findByIdWithPermissions(roleId)
                 .orElseThrow(() -> new RoleNotFoundException(roleId));
+
+        if (role.getDeletedAt() != null) {
+            throw new com.starterkit.auth.auth.application.exception.DeletedRoleException(roleId);
+        }
 
         Set<Permission> permissions = permissionIds.stream()
                 .map(pid -> permissionRepository.findById(pid)
