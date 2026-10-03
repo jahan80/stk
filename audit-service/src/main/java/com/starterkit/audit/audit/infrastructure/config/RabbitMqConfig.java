@@ -25,6 +25,10 @@ public class RabbitMqConfig {
     public static final String GATEWAY_QUEUE = "audit.gateway.events";
     public static final String GATEWAY_ROUTING = "gateway.#";
 
+    // Ticket events
+    public static final String TICKET_QUEUE = "audit.ticket.events";
+    public static final String TICKET_ROUTING = "ticket.#";
+
     @Bean
     public TopicExchange eventsExchange() {
         return new TopicExchange(EXCHANGE, true, false);
@@ -62,6 +66,23 @@ public class RabbitMqConfig {
         return BindingBuilder.bind(auditGatewayQueue)
                 .to(eventsExchange)
                 .with(GATEWAY_ROUTING);
+    }
+
+    // ==================== TICKET QUEUE ====================
+
+    @Bean
+    public Queue auditTicketQueue() {
+        return QueueBuilder.durable(TICKET_QUEUE)
+                .withArgument("x-dead-letter-exchange", "starterkit.dlx")
+                .withArgument("x-dead-letter-routing-key", "audit.dead")
+                .build();
+    }
+
+    @Bean
+    public Binding auditTicketBinding(Queue auditTicketQueue, TopicExchange eventsExchange) {
+        return BindingBuilder.bind(auditTicketQueue)
+                .to(eventsExchange)
+                .with(TICKET_ROUTING);
     }
 
     // ==================== DEAD LETTER ====================
