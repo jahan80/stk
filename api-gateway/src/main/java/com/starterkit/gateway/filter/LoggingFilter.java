@@ -29,6 +29,7 @@ public class LoggingFilter implements GlobalFilter, Ordered {
 
     private final GatewayEventPublisher eventPublisher;
     private final JwtClaimsExtractor jwtClaimsExtractor;
+    private final com.starterkit.gateway.ratelimit.config.RateLimitProperties rateLimitProperties;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -151,15 +152,22 @@ public class LoggingFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * For audit logging we always try XFF first (best-effort info),
-     * but we annotate the source to distinguish trusted vs raw.
-     * Rate-limit uses a separate, configurable getClientIp().
+     * Resolve client IP for audit logging.
+     *
+     * SECURITY: Uses the SAME trust policy as RateLimitingFilter to avoid
+     * two different definitions of "client IP" inside the gateway.
+     *
+     *   - trustProxy=false (default): use raw TCP peer (no spoofing)
+     *   - trustProxy=true: trust first X-Forwarded-For entry
      */
     private String getClientIp(ServerHttpRequest request) {
-        String xForwardedFor = request.getHeaders().getFirst(X_FORWARDED_FOR);
-        if (StringUtils.hasText(xForwardedFor)) {
-            return xForwardedFor.split(",")[0].trim();
+        if (rateLimitProperties.isTrustProxy()) {
+            String xForwardedFor = request.getHeaders().getFirst(X_FORWARDED_FOR);
+            if (StringUtils.hasText(xForwardedFor)) {
+                return xForwardedFor.split(",")[0].trim();
+            }
         }
+
         if (request.getRemoteAddress() != null) {
             return request.getRemoteAddress().getAddress().getHostAddress();
         }

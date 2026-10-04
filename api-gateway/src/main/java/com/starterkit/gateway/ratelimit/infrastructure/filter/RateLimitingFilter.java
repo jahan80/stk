@@ -47,13 +47,26 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
         String method = request.getMethod().name();
 
         // Find matching config
-        Optional<ActiveRateLimitResponse> configOpt = findMatchingConfig(path, method);
+        MatchResult result = findMatchingConfig(path, method);
 
-        if (configOpt.isEmpty() || !properties.getDefaultLimit().isEnabled()) {
+        // Case 1: config load failed (DB down, cache error, ...)
+        if (result.error()) {
+            if (properties.isFailOpen()) {
+                log.warn("Rate limit: config load failed, fail-OPEN → allowing {} {}",
+                        method, path);
+                return chain.filter(exchange);
+            }
+            log.error("Rate limit: config load failed, fail-CLOSED → rejecting {} {}",
+                    method, path);
+            return serviceUnavailable(exchange);
+        }
+
+        // Case 2: no matching config
+        if (!result.found() || !properties.getDefaultLimit().isEnabled()) {
             return chain.filter(exchange);
         }
 
-        ActiveRateLimitResponse config = configOpt.get();
+        ActiveRateLimitResponse config = result.config();
         String key = buildKey(exchange, config);
 
         // Get or create bucket
@@ -87,17 +100,24 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
     // Matching
     // =====================================================
 
-    private Optional<ActiveRateLimitResponse> findMatchingConfig(String path, String method) {
+    /**
+     * Result of looking up a matching rate-limit config.
+     */
+    private record MatchResult(boolean found, ActiveRateLimitResponse config, boolean error) {}
+
+    private MatchResult findMatchingConfig(String path, String method) {
         try {
             List<ActiveRateLimitResponse> configs = configService.getActive();
 
-            return configs.stream()
+            Optional<ActiveRateLimitResponse> match = configs.stream()
                     .filter(c -> matches(c, path, method))
                     .findFirst();
 
+            return new MatchResult(match.isPresent(), match.orElse(null), false);
+
         } catch (Exception ex) {
             log.error("Failed to load rate limit configs", ex);
-            return Optional.empty();
+            return new MatchResult(false, null, true);
         }
     }
 
@@ -171,6 +191,35 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
                 String.valueOf(bucket.getAvailableTokens()));
         response.getHeaders().add("X-RateLimit-Reset",
                 String.valueOf(Instant.now().plusSeconds(config.getWindowSeconds()).getEpochSecond()));
+    }
+
+    // =====================================================
+    // 503 Response (fail-closed)
+    // =====================================================
+
+    private Mono<Void> serviceUnavailable(ServerWebExchange exchange) {
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = Map.of(
+                "success", false,
+                "code", "GATEWAY-RATE-002",
+                "message", "Rate limit unavailable (fail-closed mode)",
+                "data", Map.of(
+                        "path", exchange.getRequest().getPath().value()
+                ),
+                "timestamp", Instant.now().toString()
+        );
+
+        try {
+            byte[] bytes = objectMapper.writeValueAsBytes(body);
+            DataBuffer buffer = response.bufferFactory().wrap(bytes);
+            return response.writeWith(Mono.just(buffer));
+        } catch (Exception ex) {
+            log.error("Failed to write 503 response", ex);
+            return response.setComplete();
+        }
     }
 
     // =====================================================

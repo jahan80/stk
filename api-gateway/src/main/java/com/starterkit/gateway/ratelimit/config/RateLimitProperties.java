@@ -30,6 +30,22 @@ public class RateLimitProperties {
      */
     private boolean trustProxy = false;
 
+    /**
+     * Behavior when the rate-limit config cannot be loaded (DB down,
+     * cache failure, etc.).
+     *
+     *   true  (default): fail-OPEN  — allow the request.
+     *          Prioritizes availability; a broken DB does not take
+     *          down the gateway. Suitable for most endpoints.
+     *
+     *   false: fail-CLOSED — reject with 503.
+     *          Prioritizes security; suitable for sensitive endpoints
+     *          (login, password reset) during an incident.
+     *
+     * NOTE: The final choice must be conscious. Default is open.
+     */
+    private boolean failOpen = true;
+
     @Getter
     @Setter
     public static class Defaults {
