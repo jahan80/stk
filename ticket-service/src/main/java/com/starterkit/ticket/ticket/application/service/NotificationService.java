@@ -23,6 +23,7 @@ import java.util.Set;
 public class NotificationService {
 
     private final TicketNotificationRepository repo;
+    private final ExternalNotificationDispatcher externalDispatcher;
 
     // ========== CREATE ==========
 
@@ -44,6 +45,15 @@ public class NotificationService {
 
         repo.save(n);
         log.debug("Notification created: userId={}, type={}, ticketId={}", userId, type, ticketId);
+
+        // External channels (configurable) - email/sms via outbox.
+        // Best-effort: failures do NOT roll back the business TX.
+        try {
+            externalDispatcher.dispatch(
+                    java.util.List.of(userId), type, title, message, ticketId, actorId);
+        } catch (Exception ex) {
+            log.error("External dispatch failed for userId={}, type={}", userId, type, ex);
+        }
     }
 
     @Transactional
@@ -56,9 +66,14 @@ public class NotificationService {
         Set<Long> unique = new LinkedHashSet<>(userIds);
         unique.remove(actorId);
 
+        // 1) In-app notifications (always)
         for (Long userId : unique) {
             create(userId, type, title, message, ticketId, actorId, link);
         }
+
+        // 2) External channels (configurable) - email/sms via outbox.
+        //    Best-effort: failures here do NOT roll back the business TX.
+        externalDispatcher.dispatch(unique, type, title, message, ticketId, actorId);
     }
 
     // ========== READ ==========

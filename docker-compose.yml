@@ -169,6 +169,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: admin
       SPRING_RABBITMQ_PASSWORD: admin
+      AUTH_SERVICE_URL: http://auth-service:8081
     depends_on:
       postgres:
         condition: service_healthy

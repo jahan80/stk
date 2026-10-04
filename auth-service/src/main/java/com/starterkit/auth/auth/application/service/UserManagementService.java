@@ -34,6 +34,23 @@ public class UserManagementService {
                 .toList();
     }
 
+    /**
+     * Lightweight contact info for service-to-service calls.
+     * Returns only email + mobile — no roles, no permissions.
+     */
+    public com.starterkit.auth.auth.api.dto.UserContactResponse getContact(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        return com.starterkit.auth.auth.api.dto.UserContactResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .mobileNumber(user.getMobileNumber())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .build();
+    }
+
     public UserDetailResponse getById(Long id) {
         User user = userRepository.findByIdWithRole(id)
                 .orElseThrow(() -> new UserNotFoundException(id));

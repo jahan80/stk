@@ -76,6 +76,11 @@ public class SecurityConfig {
                                 "/auth/configurations/**"
                         ).permitAll()
 
+                        // Service-to-service endpoints.
+                        // Not exposed via api-gateway (no route).
+                        // Only reachable from inside the docker network.
+                        .requestMatchers("/internal/**").permitAll()
+
                         .anyRequest().authenticated()
                 );
 
