@@ -24,12 +24,16 @@ public class UserClient {
 
     private final RestClient authServiceRestClient;
 
+    @org.springframework.beans.factory.annotation.Value("${internal-api.token:dev-only-internal-token-change-me}")
+    private String internalApiToken;
+
     public Optional<UserContact> getContact(Long userId) {
         if (userId == null) return Optional.empty();
 
         try {
             JsonNode response = authServiceRestClient.get()
                     .uri("/internal/users/{id}/contact", userId)
+                    .header("X-Internal-Token", internalApiToken)
                     .retrieve()
                     .body(JsonNode.class);
 

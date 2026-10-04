@@ -1,5 +1,6 @@
 package com.starterkit.auth.shared.infrastructure.config;
 
+import com.starterkit.auth.shared.infrastructure.internal.InternalAuthFilter;
 import com.starterkit.auth.shared.infrastructure.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalAuthFilter internalAuthFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -37,6 +39,12 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
 
+                // InternalAuthFilter runs FIRST for /internal/**.
+                // It enforces X-Internal-Token before JWT.
+                .addFilterBefore(
+                        internalAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -76,9 +84,9 @@ public class SecurityConfig {
                                 "/auth/configurations/**"
                         ).permitAll()
 
-                        // Service-to-service endpoints.
-                        // Not exposed via api-gateway (no route).
-                        // Only reachable from inside the docker network.
+                        // /internal/** is guarded by InternalAuthFilter
+                        // (X-Internal-Token). permitAll here so Spring Security
+                        // does not additionally require a JWT.
                         .requestMatchers("/internal/**").permitAll()
 
                         .anyRequest().authenticated()

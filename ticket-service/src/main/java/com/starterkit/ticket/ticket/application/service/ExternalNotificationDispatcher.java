@@ -85,31 +85,33 @@ public class ExternalNotificationDispatcher {
         }
     }
 
+    /**
+     * Enqueue an email command in the same transaction as the business.
+     *
+     * IMPORTANT: exceptions from eventPublisher.publish() MUST propagate.
+     * The outbox insert runs in the SAME DB transaction as the ticket
+     * change. If it fails, we roll back the whole business transaction
+     * — otherwise we'd have a ticket with no corresponding event,
+     * breaking the outbox guarantee.
+     */
     private void enqueueEmail(String to, String subject, String body,
                                Long userId, NotificationType type, Long ticketId) {
-        try {
-            eventPublisher.publish(new NotifSendEmailEvent(to, subject, body, userId));
-            log.debug("External notif enqueued: EMAIL to={}, type={}, ticketId={}",
-                    to, type, ticketId);
-        } catch (Exception ex) {
-            // Publishing to outbox fails -> do NOT roll back business.
-            // Log; the notification is lost (rare, since outbox uses same DB).
-            log.error("Failed to enqueue EMAIL for userId={}, type={}", userId, type, ex);
-        }
+        eventPublisher.publish(new NotifSendEmailEvent(to, subject, body, userId));
+        log.debug("External notif enqueued: EMAIL to={}, type={}, ticketId={}",
+                to, type, ticketId);
     }
 
+    /**
+     * Enqueue an SMS command. Same propagation policy as enqueueEmail().
+     */
     private void enqueueSms(String to, String title, String body,
                              Long userId, NotificationType type, Long ticketId) {
-        try {
-            String smsBody = (title != null && !title.isBlank())
-                    ? title + "\n" + body
-                    : body;
-            eventPublisher.publish(new NotifSendSmsEvent(to, smsBody, userId));
-            log.debug("External notif enqueued: SMS to={}, type={}, ticketId={}",
-                    to, type, ticketId);
-        } catch (Exception ex) {
-            log.error("Failed to enqueue SMS for userId={}, type={}", userId, type, ex);
-        }
+        String smsBody = (title != null && !title.isBlank())
+                ? title + "\n" + body
+                : body;
+        eventPublisher.publish(new NotifSendSmsEvent(to, smsBody, userId));
+        log.debug("External notif enqueued: SMS to={}, type={}, ticketId={}",
+                to, type, ticketId);
     }
 
     private boolean isEnabled(String key) {

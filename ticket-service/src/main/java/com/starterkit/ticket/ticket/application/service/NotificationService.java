@@ -27,12 +27,33 @@ public class NotificationService {
 
     // ========== CREATE ==========
 
+    /**
+     * Create in-app notification + dispatch external channels.
+     *
+     * If called standalone (not from createForMany), external dispatch
+     * happens once for this user.
+     */
     @Transactional
     public void create(Long userId, NotificationType type, String title, String message,
                        Long ticketId, Long actorId, String link) {
         // Don't notify the actor about their own action
         if (actorId != null && actorId.equals(userId)) return;
 
+        // 1) In-app
+        saveInApp(userId, type, title, message, ticketId, actorId, link);
+
+        // 2) External (single user)
+        // Failing to enqueue the outbox row must roll back the business
+        // transaction — otherwise we'd have a ticket with no event.
+        externalDispatcher.dispatch(
+                java.util.List.of(userId), type, title, message, ticketId, actorId);
+    }
+
+    /**
+     * Internal helper: save in-app row only (no external dispatch).
+     */
+    private void saveInApp(Long userId, NotificationType type, String title,
+                            String message, Long ticketId, Long actorId, String link) {
         TicketNotification n = new TicketNotification();
         n.setUserId(userId);
         n.setType(type);
@@ -44,16 +65,8 @@ public class NotificationService {
         n.setRead(false);
 
         repo.save(n);
-        log.debug("Notification created: userId={}, type={}, ticketId={}", userId, type, ticketId);
-
-        // External channels (configurable) - email/sms via outbox.
-        // Best-effort: failures do NOT roll back the business TX.
-        try {
-            externalDispatcher.dispatch(
-                    java.util.List.of(userId), type, title, message, ticketId, actorId);
-        } catch (Exception ex) {
-            log.error("External dispatch failed for userId={}, type={}", userId, type, ex);
-        }
+        log.debug("In-app notification created: userId={}, type={}, ticketId={}",
+                userId, type, ticketId);
     }
 
     @Transactional
@@ -65,14 +78,15 @@ public class NotificationService {
         // dedup + remove actor
         Set<Long> unique = new LinkedHashSet<>(userIds);
         unique.remove(actorId);
+        if (unique.isEmpty()) return;
 
-        // 1) In-app notifications (always)
+        // 1) In-app for each user — no external dispatch here.
         for (Long userId : unique) {
-            create(userId, type, title, message, ticketId, actorId, link);
+            saveInApp(userId, type, title, message, ticketId, actorId, link);
         }
 
-        // 2) External channels (configurable) - email/sms via outbox.
-        //    Best-effort: failures here do NOT roll back the business TX.
+        // 2) External channels (email/sms) — dispatched ONCE for all users.
+        //    Failing to enqueue the outbox row must roll back the business TX.
         externalDispatcher.dispatch(unique, type, title, message, ticketId, actorId);
     }
 
