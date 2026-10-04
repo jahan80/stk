@@ -150,6 +150,11 @@ public class LoggingFilter implements GlobalFilter, Ordered {
         return Ordered.HIGHEST_PRECEDENCE;
     }
 
+    /**
+     * For audit logging we always try XFF first (best-effort info),
+     * but we annotate the source to distinguish trusted vs raw.
+     * Rate-limit uses a separate, configurable getClientIp().
+     */
     private String getClientIp(ServerHttpRequest request) {
         String xForwardedFor = request.getHeaders().getFirst(X_FORWARDED_FOR);
         if (StringUtils.hasText(xForwardedFor)) {

@@ -135,11 +135,24 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
         };
     }
 
+    /**
+     * Resolve client IP for rate-limit key.
+     *
+     * SECURITY:
+     *   - If trustProxy=false (default), we IGNORE X-Forwarded-For and
+     *     use the raw TCP peer address. This prevents spoofing.
+     *   - If trustProxy=true, we trust the first XFF entry.
+     *     Only enable when a trusted proxy overwrites XFF upstream.
+     */
     private String getClientIp(ServerHttpRequest request) {
-        String xForwardedFor = request.getHeaders().getFirst("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
+        if (properties.isTrustProxy()) {
+            String xForwardedFor = request.getHeaders().getFirst("X-Forwarded-For");
+            if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+                // First IP in the list = original client (per RFC 7239)
+                return xForwardedFor.split(",")[0].trim();
+            }
         }
+
         if (request.getRemoteAddress() != null) {
             return request.getRemoteAddress().getAddress().getHostAddress();
         }

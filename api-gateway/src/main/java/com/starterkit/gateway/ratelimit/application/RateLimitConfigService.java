@@ -48,13 +48,13 @@ public class RateLimitConfigService {
     @Transactional
     @CacheEvict(value = "activeRateLimits", allEntries = true)
     public RateLimitResponse create(RateLimitRequest request) {
-        // Pre-check for duplicate: (pathPattern, method, keyType)
-        // Note: method may be null → use COALESCE-equivalent check.
-        boolean duplicate = repository.findAll().stream()
-                .anyMatch(c -> c.getPathPattern().equals(request.getPathPattern())
-                        && java.util.Objects.equals(c.getMethod(), request.getMethod())
-                        && c.getKeyType() == request.getKeyType());
-        if (duplicate) {
+        // Pre-check for duplicate: DB-side, uses COALESCE(method,'').
+        // Mirrors the DB unique index; avoids loading the whole table.
+        if (repository.existsDuplicate(
+                request.getPathPattern(),
+                request.getMethod(),
+                request.getKeyType().name(),
+                null)) {
             throw new IllegalStateException(
                     "Rate limit already exists for path=" + request.getPathPattern()
                             + ", method=" + request.getMethod()
@@ -85,6 +85,18 @@ public class RateLimitConfigService {
         RateLimitConfig config = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Rate limit config not found: " + id));
+
+        // Duplicate check (excluding self)
+        if (repository.existsDuplicate(
+                request.getPathPattern(),
+                request.getMethod(),
+                request.getKeyType().name(),
+                id)) {
+            throw new IllegalStateException(
+                    "Rate limit already exists for path=" + request.getPathPattern()
+                            + ", method=" + request.getMethod()
+                            + ", keyType=" + request.getKeyType());
+        }
 
         config.setPathPattern(request.getPathPattern());
         config.setMethod(request.getMethod());
