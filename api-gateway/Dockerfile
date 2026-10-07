@@ -1,16 +1,15 @@
-FROM maven:3.9-eclipse-temurin-21 AS builder
-
-WORKDIR /build
-
-COPY pom.xml .
-COPY api-gateway/pom.xml api-gateway/
-
-RUN mvn -f api-gateway/pom.xml dependency:go-offline -B
-
-COPY api-gateway/src api-gateway/src
-
-RUN mvn -f api-gateway/pom.xml clean package -DskipTests -B
-
+# ============================================================
+# api-gateway — runtime-only Dockerfile
+# ============================================================
+# Build strategy:
+#   The jar is built ON THE HOST by Maven (uses ~/.m2 cache, no
+#   network dependency inside Docker).
+#   Docker only packages the existing jar into a runtime image.
+#
+#   Build order:
+#     1. mvn -pl api-gateway -am clean package -DskipTests   (on host)
+#     2. docker compose up -d --build api-gateway
+# ============================================================
 
 FROM eclipse-temurin:21-jre-alpine
 
@@ -18,7 +17,9 @@ WORKDIR /app
 
 RUN addgroup -S starterkit && adduser -S starterkit -G starterkit
 
-COPY --from=builder /build/api-gateway/target/*.jar app.jar
+COPY api-gateway/target/*.jar app.jar
+
+RUN chown -R starterkit:starterkit /app
 
 USER starterkit
 

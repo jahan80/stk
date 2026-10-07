@@ -1,16 +1,15 @@
-FROM maven:3.9-eclipse-temurin-21 AS builder
-
-WORKDIR /build
-
-COPY pom.xml .
-COPY audit-service/pom.xml audit-service/
-
-RUN mvn -f audit-service/pom.xml dependency:go-offline -B
-
-COPY audit-service/src audit-service/src
-
-RUN mvn -f audit-service/pom.xml clean package -DskipTests -B
-
+# ============================================================
+# audit-service — runtime-only Dockerfile
+# ============================================================
+# Build strategy:
+#   The jar is built ON THE HOST by Maven (uses ~/.m2 cache, no
+#   network dependency inside Docker).
+#   Docker only packages the existing jar into a runtime image.
+#
+#   Build order:
+#     1. mvn -pl audit-service -am clean package -DskipTests   (on host)
+#     2. docker compose up -d --build audit-service
+# ============================================================
 
 FROM eclipse-temurin:21-jre-alpine
 
@@ -18,7 +17,9 @@ WORKDIR /app
 
 RUN addgroup -S starterkit && adduser -S starterkit -G starterkit
 
-COPY --from=builder /build/audit-service/target/*.jar app.jar
+COPY audit-service/target/*.jar app.jar
+
+RUN chown -R starterkit:starterkit /app
 
 USER starterkit
 
