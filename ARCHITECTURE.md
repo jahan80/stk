@@ -146,3 +146,48 @@ the broker is unavailable.
     }
 
 Alert if `droppedQueueFull` or `publishFailures` grows.
+
+## Rate limiting in distributed deployment
+
+The gateway's rate limiter is **per-instance**, backed by Caffeine
+(in-memory). Token buckets live in the JVM of each gateway process.
+
+### What that means
+
+    Configured limit:  100 req / 60s per IP+path
+    Gateway replicas:  N
+
+    Effective limit ≈  N × 100 req / 60s per IP+path
+
+So a horizontal scale-out **does not reduce** the effective limit.
+For a single gateway (current deployment) this is correct and cheap.
+For N > 1 replicas, a client can send N times the intended rate.
+
+### When this matters
+
+- Multi-replica gateway (Kubernetes HPA, ECS, manual scale-out).
+- Tiered plans where the limit must be exact (billing, quotas).
+- Any deployment where different replicas may serve the same client.
+
+### Path to distributed rate limiting
+
+When scaling out, replace the in-memory `BucketRegistry` with a
+distributed backend. Two viable options:
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Redis + Lua script** | Atomic, industry standard, low latency | New infra dependency |
+| **Redis + bucket4j-redis** | Library handles Lua + serialization | Still requires Redis |
+
+The current rate-limit **config** (per-path rules) is already stored
+in `gateway.rate_limits` and cached in Caffeine. That part is
+replica-safe; only the **token bucket state** is per-instance.
+
+### Why we didn't switch now
+
+- Single gateway instance in current deployment.
+- Redis adds operational surface (backup, HA, monitoring) that isn't
+  justified by the current scale.
+- The per-instance policy is intentional and cheap, not accidental.
+
+This section is a deliberate decision record, not a TODO.
