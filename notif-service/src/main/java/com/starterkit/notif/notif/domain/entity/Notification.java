@@ -35,8 +35,8 @@ public class Notification {
 
     /**
      * Source event UUID (from the producer service).
-     * Used for idempotency: if the same event arrives twice,
-     * only one notification should be sent.
+     * UNIQUE — one notification row per source event.
+     * Retries reuse this same row (attempts++).
      */
     @Column(name = "event_id", nullable = false, unique = true)
     private UUID eventId;
@@ -77,22 +77,76 @@ public class Notification {
     @Column(name = "sent_at")
     private Instant sentAt;
 
+    // ===== Retry / attempts (V3) =====
+
+    @Column(nullable = false)
+    private int attempts = 0;
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
+    private String lastError;
+
+    @Column(name = "next_attempt_at", nullable = false)
+    private Instant nextAttemptAt;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
+    @Column(name = "claimed_by", length = 100)
+    private String claimedBy;
+
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
+        Instant now = Instant.now();
+        if (createdAt == null) createdAt = now;
+        if (nextAttemptAt == null) nextAttemptAt = now;
     }
 
-    public enum Channel {
-        SMS,
-        EMAIL,
-        PUSH
+    // ===== State transitions =====
+
+    /** Provider call succeeded → terminal state. */
+    public void markSent(String providerMessageId) {
+        this.status = Status.SENT;
+        this.providerMessageId = providerMessageId;
+        this.sentAt = Instant.now();
+        this.errorMessage = null;
+        this.lastError = null;
+        clearClaim();
     }
+
+    /**
+     * Provider call failed → keep row for retry.
+     * @param rawError   technical message (provider exception / nack)
+     * @param backoff    when to try again
+     */
+    public void markRetry(String rawError, Instant backoff) {
+        this.status = Status.FAILED;
+        this.attempts++;
+        this.lastError = truncate(rawError, 2000);
+        this.errorMessage = truncate(rawError, 500);
+        this.nextAttemptAt = backoff;
+        clearClaim();
+    }
+
+    public void claim(String instanceId, Instant leaseUntil) {
+        this.claimedBy = instanceId;
+        this.lockedUntil = leaseUntil;
+    }
+
+    public void clearClaim() {
+        this.claimedBy = null;
+        this.lockedUntil = null;
+    }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max);
+    }
+
+    public enum Channel { SMS, EMAIL, PUSH }
 
     public enum Status {
-        PENDING,
-        SENT,
-        FAILED
+        PENDING,   // never attempted yet
+        SENT,      // terminal success
+        FAILED     // attempted, will be retried until maxAttempts
     }
 }
