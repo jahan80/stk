@@ -85,7 +85,7 @@ public class NotificationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
 
         Notification.Channel channelEnum = null;
         if (channel != null && !channel.isBlank()) {

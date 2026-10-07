@@ -44,7 +44,7 @@ public class TicketController {
     ) {
         return responseFactory.success(ApiCode.SUCCESS,
                 ticketService.list(user, status, priority, groupId, unassignedOnly, assignedOnly,
-                        PageRequest.of(page, size)));
+                        PageRequest.of(page, Math.min(size, 100))));
     }
 
     // =====================================================

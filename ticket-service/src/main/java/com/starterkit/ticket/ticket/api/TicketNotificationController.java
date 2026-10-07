@@ -30,7 +30,7 @@ public class TicketNotificationController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return factory.success(ApiCode.SUCCESS,
-                service.list(user.getId(), unreadOnly, PageRequest.of(page, size)));
+                service.list(user.getId(), unreadOnly, PageRequest.of(page, Math.min(size, 100))));
     }
 
     @GetMapping("/unread-count")

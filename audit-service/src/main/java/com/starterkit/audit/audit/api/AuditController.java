@@ -40,7 +40,7 @@ public class AuditController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
 
         Page<AuditEventResponse> events = auditEventService.search(
                 eventType, source, from, to, pageable

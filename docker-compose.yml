@@ -58,7 +58,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: admin
       SPRING_RABBITMQ_PASSWORD: admin
-      APP_DEFAULT_ADMIN_ENABLED: "true"
+      APP_DEFAULT_ADMIN_ENABLED: ${APP_DEFAULT_ADMIN_ENABLED:-false}
       APP_DEFAULT_ADMIN_USERNAME: admin
       APP_DEFAULT_ADMIN_PASSWORD: ${APP_DEFAULT_ADMIN_PASSWORD:-admin123}
       APP_DEFAULT_ADMIN_EMAIL: admin@starterkit.local
@@ -101,8 +101,8 @@ services:
       context: .
       dockerfile: notif-service/Dockerfile
     container_name: starterkit-notif-service
-    ports:
-      - "8083:8083"
+    # A1: host port removed — internal-only, access via api-gateway:8080
+    #         - "8083:8083"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=notif,public
       SPRING_DATASOURCE_USERNAME: sa
@@ -161,8 +161,8 @@ services:
       context: .
       dockerfile: ticket-service/Dockerfile
     container_name: starterkit-ticket-service
-    ports:
-      - "8084:8084"
+    # A1: host port removed — internal-only, access via api-gateway:8080
+    #         - "8084:8084"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=ticket,public
       SPRING_DATASOURCE_USERNAME: sa
