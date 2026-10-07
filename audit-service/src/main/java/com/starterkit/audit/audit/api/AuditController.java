@@ -3,13 +3,14 @@ package com.starterkit.audit.audit.api;
 import com.starterkit.audit.audit.api.dto.AuditEventResponse;
 import com.starterkit.audit.audit.application.service.AuditEventService;
 import com.starterkit.audit.shared.api.response.ApiCode;
-import com.starterkit.audit.shared.api.response.ApiResponse;
-import com.starterkit.audit.shared.api.response.ApiResponseFactory;
+import com.starterkit.commons.web.ApiResponse;
+import com.starterkit.commons.web.ApiResponseFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +29,7 @@ public class AuditController {
     private final ApiResponseFactory responseFactory;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('audit:read')")
     public ApiResponse<Page<AuditEventResponse>> search(
             @RequestParam(required = false) String eventType,
             @RequestParam(required = false) String source,
@@ -48,6 +50,7 @@ public class AuditController {
     }
 
     @GetMapping("/trace/{traceId}")
+    @PreAuthorize("hasAuthority('audit:read')")
     public ApiResponse<List<AuditEventResponse>> findByTraceId(
             @PathVariable String traceId
     ) {

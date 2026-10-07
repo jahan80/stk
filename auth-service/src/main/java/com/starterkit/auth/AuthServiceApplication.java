@@ -11,7 +11,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 @SpringBootApplication
 @ComponentScan(basePackages = {
         "com.starterkit.auth",
-        "com.starterkit.outbox"
+        "com.starterkit.outbox",
+        "com.starterkit.commons"
 })
 @EntityScan(basePackages = {
         "com.starterkit.auth",

@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum ApiCode {
+public enum ApiCode implements com.starterkit.commons.web.ApiCode {
     SUCCESS("TICKET-000", "Operation completed successfully"),
 
     // Ticket
@@ -18,6 +18,7 @@ public enum ApiCode {
     // Category
     CATEGORY_NOT_FOUND("TICKET-CAT-001", "Category not found"),
     CATEGORY_ALREADY_EXISTS("TICKET-CAT-002", "Category already exists"),
+    CATEGORY_IN_USE("TICKET-CAT-003", "Category is in use and cannot be deleted"),
 
     // Group
     GROUP_NOT_FOUND("TICKET-GRP-001", "Group not found"),
@@ -35,4 +36,14 @@ public enum ApiCode {
 
     private final String code;
     private final String message;
+
+    /**
+     * Commons interface alias.
+     * This service stores the human-readable text in the `message` field,
+     * so we expose it via the interface-required method name.
+     */
+    @Override
+    public String getDefaultMessage() {
+        return message;
+    }
 }

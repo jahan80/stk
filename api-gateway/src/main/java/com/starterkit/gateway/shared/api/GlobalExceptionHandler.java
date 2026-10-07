@@ -1,8 +1,8 @@
 package com.starterkit.gateway.shared.api;
 
 import com.starterkit.gateway.shared.api.response.ApiCode;
-import com.starterkit.gateway.shared.api.response.ApiResponse;
-import com.starterkit.gateway.shared.api.response.ApiResponseFactory;
+import com.starterkit.commons.web.ApiResponse;
+import com.starterkit.commons.web.ApiResponseFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

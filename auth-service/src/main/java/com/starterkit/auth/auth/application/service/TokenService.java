@@ -31,6 +31,7 @@ public class TokenService {
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenRevoker refreshTokenRevoker;
 
     @Transactional
     public TokenPair generateTokens(User user) {
@@ -77,7 +78,7 @@ public class TokenService {
         if (existing.isRevoked()) {
             log.warn("Refresh token reuse detected for user {}. Revoking all tokens.",
                     existing.getUser().getId());
-            revokeAllTokensForUser(existing.getUser().getId());
+            refreshTokenRevoker.revokeAllForUser(existing.getUser().getId());
             throw new LoginException(ApiCode.INVALID_CREDENTIALS);
         }
 
@@ -179,14 +180,5 @@ public class TokenService {
                 .orElse(null);
     }
 
-    /**
-     * Revokes all active refresh tokens for a user.
-     * Runs in its own transaction so a caller's rollback does not undo it.
-     */
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    public void revokeAllTokensForUser(Long userId) {
-        int revoked = refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
-        log.warn("Revoked {} refresh tokens for user {}", revoked, userId);
-    }
 
 }

@@ -1,12 +1,14 @@
 package com.starterkit.ticket.shared.api;
 
 import com.starterkit.ticket.shared.api.response.ApiCode;
-import com.starterkit.ticket.shared.api.response.ApiResponse;
-import com.starterkit.ticket.shared.api.response.ApiResponseFactory;
+import com.starterkit.commons.web.ApiResponse;
+import com.starterkit.commons.web.ApiResponseFactory;
 import com.starterkit.ticket.ticket.application.exception.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -73,6 +75,37 @@ public class GlobalExceptionHandler {
                         fe -> fe.getDefaultMessage() == null ? "Invalid" : fe.getDefaultMessage(),
                         (a, b) -> a));
         return factory.error(ApiCode.VALIDATION_ERROR, Map.of("fields", fields));
+    }
+
+    @ExceptionHandler(com.starterkit.ticket.ticket.application.exception.CategoryAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleCatExists(com.starterkit.ticket.ticket.application.exception.CategoryAlreadyExistsException e) {
+        return factory.error(ApiCode.CATEGORY_ALREADY_EXISTS);
+    }
+
+    @ExceptionHandler(com.starterkit.ticket.ticket.application.exception.CategoryInUseException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleCatInUse(com.starterkit.ticket.ticket.application.exception.CategoryInUseException e) {
+        return factory.error(ApiCode.CATEGORY_IN_USE);
+    }
+
+    /**
+     * FIX: method-security failures (@PreAuthorize) must return 403,
+     * not 500.
+     *
+     * Spring Security 6 throws AuthorizationDeniedException (subclass of
+     * AccessDeniedException) when @PreAuthorize fails. Without an explicit
+     * handler, the catch-all below would turn it into a 500 Internal Error.
+     *
+     * NOTE: This is distinct from TicketAccessDeniedException, which is a
+     * business-level access check (owner/assignee/group-member) — that one
+     * is already handled above with its own @ExceptionHandler.
+     */
+    @ExceptionHandler({ AccessDeniedException.class, AuthorizationDeniedException.class })
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleSpringSecurityAccessDenied(Exception e) {
+        log.warn("Spring Security access denied: {}", e.getMessage());
+        return factory.error(ApiCode.FORBIDDEN);
     }
 
     @ExceptionHandler(Exception.class)

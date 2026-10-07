@@ -2,12 +2,13 @@ package com.starterkit.auth.auth.application.service;
 
 import com.starterkit.auth.auth.application.exception.InvalidMobileVerificationCodeException;
 import com.starterkit.auth.auth.application.exception.MobileAlreadyVerifiedException;
+import com.starterkit.auth.auth.application.event.AuthEventPublisher;
+import com.starterkit.auth.auth.application.event.NotifSendSmsEvent;
 import com.starterkit.auth.auth.domain.entity.MobileVerificationToken;
 import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.MobileVerificationTokenRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import com.starterkit.auth.configuration.application.ConfigurationService;
-import com.starterkit.auth.shared.infrastructure.event.NotifEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ public class MobileVerificationService {
     private final MobileVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final ConfigurationService configurationService;
-    private final NotifEventPublisher notifEventPublisher;
+    private final AuthEventPublisher eventPublisher;
 
     @Transactional
     public void sendVerificationCode(User user) {
@@ -46,6 +47,7 @@ public class MobileVerificationService {
         }
 
         tokenRepository.deleteAllByUser(user);
+        tokenRepository.flush();   // FIX: ensure DELETE hits DB before new INSERT
 
         int codeLength = configurationService.getInteger(
                 "AUTH.MOBILE.VERIFICATION.CODE.LENGTH");
@@ -66,7 +68,8 @@ public class MobileVerificationService {
                 code, ttlSeconds / 60
         );
 
-        notifEventPublisher.sendSms(user.getMobileNumber(), message);
+        eventPublisher.publish(new NotifSendSmsEvent(
+                user.getMobileNumber(), message, user.getId()));
 
         log.info("Mobile verification code sent to user {} ({})",
                 user.getId(), user.getMobileNumber());

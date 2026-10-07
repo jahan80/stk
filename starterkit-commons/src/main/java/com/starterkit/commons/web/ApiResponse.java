@@ -1,4 +1,4 @@
-package com.starterkit.ticket.shared.api.response;
+package com.starterkit.commons.web;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -8,6 +8,7 @@ import java.time.Instant;
 @Getter
 @Builder
 public class ApiResponse<T> {
+
     private final boolean success;
     private final String code;
     private final String message;

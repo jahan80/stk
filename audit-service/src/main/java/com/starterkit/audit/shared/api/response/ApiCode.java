@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum ApiCode {
+public enum ApiCode implements com.starterkit.commons.web.ApiCode {
 
     SUCCESS(
             "AUDIT-000",
@@ -20,6 +20,11 @@ public enum ApiCode {
     VALIDATION_ERROR(
             "AUDIT-VALIDATION-001",
             "Request validation failed"
+    ),
+
+    FORBIDDEN(
+            "AUDIT-403",
+            "Access denied: insufficient permissions"
     ),
 
     INTERNAL_ERROR(

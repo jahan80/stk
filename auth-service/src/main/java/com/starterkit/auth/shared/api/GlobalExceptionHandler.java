@@ -1,8 +1,8 @@
 package com.starterkit.auth.shared.api;
 
 import com.starterkit.auth.shared.api.response.ApiCode;
-import com.starterkit.auth.shared.api.response.ApiResponse;
-import com.starterkit.auth.shared.api.response.ApiResponseFactory;
+import com.starterkit.commons.web.ApiResponse;
+import com.starterkit.commons.web.ApiResponseFactory;
 import com.starterkit.auth.shared.api.response.ValidationErrorResponse;
 import com.starterkit.auth.auth.application.exception.DeletedRoleException;
 import com.starterkit.auth.auth.application.exception.EmailAlreadyVerifiedException;

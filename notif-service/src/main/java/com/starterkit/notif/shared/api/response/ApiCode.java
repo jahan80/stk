@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum ApiCode {
+public enum ApiCode implements com.starterkit.commons.web.ApiCode {
 
     SUCCESS(
             "NOTIF-000",

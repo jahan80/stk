@@ -42,6 +42,7 @@
     </dependencyManagement>
 
     <modules>
+        <module>starterkit-commons</module>
         <module>outbox-commons</module>
         <module>auth-service</module>
         <module>audit-service</module>

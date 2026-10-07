@@ -30,6 +30,36 @@ public class InternalAuthFilter extends OncePerRequestFilter {
 
     private final InternalApiProperties properties;
 
+    @jakarta.annotation.PostConstruct
+    void validateTokenConfig() {
+        String token = properties.getToken();
+
+        if (token == null || token.isBlank()) {
+            throw new IllegalStateException(
+                    "internal-api.token must be configured (env INTERNAL_API_TOKEN)");
+        }
+
+        if (token.length() < 32) {
+            throw new IllegalStateException(
+                    "internal-api.token must be at least 32 characters. " +
+                    "Set INTERNAL_API_TOKEN to a strong random value.");
+        }
+
+        if ("dev-only-internal-token-change-me".equals(token)) {
+            // Refuse the well-known dev default unless explicitly allowed.
+            String allowed = System.getenv("ALLOW_INSECURE_INTERNAL_TOKEN");
+            if (!"true".equalsIgnoreCase(allowed)) {
+                throw new IllegalStateException(
+                        "INTERNAL_API_TOKEN is still the well-known dev default. " +
+                        "Set a strong random value, or set ALLOW_INSECURE_INTERNAL_TOKEN=true " +
+                        "for local development only.");
+            }
+            log.warn("*** Using the well-known dev INTERNAL_API_TOKEN. " +
+                     "NEVER do this in production. ***");
+        }
+    }
+
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !request.getRequestURI().startsWith(INTERNAL_PATH_PREFIX);
