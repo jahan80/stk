@@ -5,6 +5,7 @@ import com.starterkit.notif.notif.api.dto.NotifEventMessage;
 import com.starterkit.notif.notif.api.dto.PushRequest;
 import com.starterkit.notif.notif.api.dto.SmsRequest;
 import com.starterkit.notif.notif.application.NotificationService;
+import com.starterkit.notif.notif.domain.entity.Notification;
 import com.starterkit.notif.notif.domain.repository.NotificationRepository;
 import com.starterkit.notif.notif.infrastructure.config.RabbitMqConfig;
 import lombok.RequiredArgsConstructor;
@@ -15,17 +16,29 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Consumes notification events from the notif.events queue.
+ * Consumes notification COMMAND events (SEND_EMAIL / SEND_SMS / SEND_PUSH)
+ * from the notif.events queue.
  *
- * Exception policy:
- *   - AmqpRejectAndDontRequeueException → straight to DLQ (no retry)
- *     Used for: malformed messages, unknown event types, invalid event IDs.
- *   - Other exceptions → requeue with Spring AMQP retry (up to 3 attempts)
- *     Used for: transient failures (DB down, provider timeout).
- *   - After max retries → DLX → DLQ (bounded: 7d TTL, 10k max).
+ * IMPORTANT — self-loop protection:
+ *   notif-service itself publishes RESULT events (NOTIFICATION_SENT /
+ *   NOTIFICATION_FAILED / NOTIFICATION_EXHAUSTED) with routing key
+ *   "notif.<channel>.<outcome>". Those events also match the notif.#
+ *   binding and would come back to THIS queue.
+ *
+ *   We must ACK them without processing:
+ *     - They are for audit-service, not for us.
+ *     - If we throw AmqpRejectAndDontRequeueException, they go to DLQ
+ *       and eventually fill it.
+ *
+ * Idempotency policy (unchanged):
+ *   SENT      → ACK, skip (already delivered)
+ *   PENDING   → ACK, skip (in-flight)
+ *   FAILED    → ACK, skip (retry job owns it)
+ *   absent    → first delivery, process now
  */
 @Slf4j
 @Component
@@ -38,124 +51,107 @@ public class NotifEventListener {
     @RabbitListener(queues = RabbitMqConfig.NOTIF_QUEUE)
     public void onNotifEvent(NotifEventMessage message) {
 
-        log.info("Received notif event: type={}, eventId={}, source={}, traceId={}",
-                message.getEventType(),
-                message.getEventId(),
-                message.getSource(),
-                message.getTraceId());
+        String eventType = message.getEventType();
 
-        // ===== Validate event ID =====
+        // ===== SELF-LOOP PROTECTION =====
+        // Our own result events (NOTIFICATION_*) have routing keys that
+        // also match "notif.#". Skip them silently.
+        if (eventType != null && eventType.startsWith("NOTIFICATION_")) {
+            log.debug("Ignoring own result event: type={}, eventId={}",
+                    eventType, message.getEventId());
+            return;
+        }
+
+        log.info("Received notif event: type={}, eventId={}, source={}, traceId={}",
+                eventType, message.getEventId(),
+                message.getSource(), message.getTraceId());
+
         UUID eventId;
         try {
             eventId = UUID.fromString(message.getEventId());
         } catch (Exception ex) {
-            log.error("Invalid eventId in message, rejecting to DLQ: {}", message.getEventId(), ex);
+            log.error("Invalid eventId, rejecting to DLQ: {}", message.getEventId(), ex);
             throw new AmqpRejectAndDontRequeueException(
                     "Invalid eventId: " + message.getEventId(), ex);
         }
 
-        // ===== Validate event type =====
-        if (message.getEventType() == null || message.getEventType().isBlank()) {
+        if (eventType == null || eventType.isBlank()) {
             log.error("Missing event type, rejecting to DLQ: eventId={}", eventId);
             throw new AmqpRejectAndDontRequeueException(
                     "Missing event type for eventId: " + eventId);
         }
 
-        // ===== Idempotency guard =====
-        // Fast pre-check for the common duplicate-delivery case.
-        // The UNIQUE constraint on event_id is the ultimate guard; if two
-        // consumers race, one will win and the other gets a constraint
-        // violation which we treat as "already processed" (see catch below).
-        if (notificationRepository.existsByEventId(eventId)) {
-            log.info("Duplicate event detected, skipping: eventId={}, type={}",
-                    eventId, message.getEventType());
+        // ===== Status-aware idempotency =====
+        Optional<Notification> existing = notificationRepository.findByEventId(eventId);
+        if (existing.isPresent()) {
+            Notification n = existing.get();
+            log.info("Duplicate event (status={}), ACKing: eventId={}, notificationId={}",
+                    n.getStatus(), eventId, n.getNotificationId());
             return;
         }
 
-        // ===== Dispatch by type =====
         try {
-            switch (message.getEventType()) {
-                case "SEND_SMS" -> handleSms(message, eventId);
+            switch (eventType) {
+                case "SEND_SMS"   -> handleSms(message, eventId);
                 case "SEND_EMAIL" -> handleEmail(message, eventId);
-                case "SEND_PUSH" -> handlePush(message, eventId);
+                case "SEND_PUSH"  -> handlePush(message, eventId);
                 default -> {
-                    // Unknown event type: this is a producer bug.
-                    // Do NOT silently ACK — route to DLQ so ops can inspect.
-                    log.error("Unknown notif event type: {} (eventId={}), rejecting to DLQ",
-                            message.getEventType(), eventId);
+                    log.error("Unknown COMMAND event type: {} (eventId={}), rejecting to DLQ",
+                            eventType, eventId);
                     throw new AmqpRejectAndDontRequeueException(
-                            "Unknown notif event type: " + message.getEventType());
+                            "Unknown event type: " + eventType);
                 }
             }
         } catch (AmqpRejectAndDontRequeueException ex) {
-            // Already classified as "do not retry" — let it propagate to DLQ.
             throw ex;
         } catch (DataIntegrityViolationException ex) {
-            // Race condition: another consumer created the same event_id
-            // between our pre-check and our insert. The UNIQUE constraint
-            // caught it. This is NOT a transient failure — do NOT retry.
-            // Treat as duplicate and ACK.
             String msg = ex.getMessage();
             if (msg != null && msg.contains("uk_notifications_event_id")) {
-                log.info("Duplicate event (race condition), ACKing: eventId={}", eventId);
+                log.info("Duplicate event (race), ACKing: eventId={}", eventId);
                 return;
             }
-            // Any other integrity violation is unexpected — retry.
-            log.error("Data integrity violation for eventId={}", eventId, ex);
+            log.error("Unexpected integrity violation for eventId={}", eventId, ex);
             throw ex;
         } catch (Exception ex) {
-            log.error("Failed to process notif event: eventId={}, type={}",
-                    eventId, message.getEventType(), ex);
-            // Re-throw so RabbitMQ retries (or routes to DLQ after max attempts).
-            throw ex;
+            log.warn("Delivery failed for eventId={}; retry scheduled. {}",
+                    eventId, ex.getMessage());
         }
     }
 
     private void handleSms(NotifEventMessage message, UUID eventId) {
-        Map<String, Object> data = message.getData();
-        if (data == null) {
-            throw new AmqpRejectAndDontRequeueException(
-                    "Missing data payload for SEND_SMS, eventId=" + eventId);
-        }
-
-        SmsRequest request = new SmsRequest();
-        request.setTo(asString(data.get("to")));
-        request.setMessage(asString(data.get("message")));
-
-        notificationService.sendSms(request, eventId);
+        Map<String, Object> data = requireData(message, eventId, "SEND_SMS");
+        SmsRequest req = new SmsRequest();
+        req.setTo(asString(data.get("to")));
+        req.setMessage(asString(data.get("message")));
+        notificationService.sendSms(req, eventId);
     }
 
     private void handleEmail(NotifEventMessage message, UUID eventId) {
-        Map<String, Object> data = message.getData();
-        if (data == null) {
-            throw new AmqpRejectAndDontRequeueException(
-                    "Missing data payload for SEND_EMAIL, eventId=" + eventId);
-        }
-
-        EmailRequest request = new EmailRequest();
-        request.setTo(asString(data.get("to")));
-        request.setSubject(asString(data.get("subject")));
-        request.setBody(asString(data.get("body")));
-
-        notificationService.sendEmail(request, eventId);
+        Map<String, Object> data = requireData(message, eventId, "SEND_EMAIL");
+        EmailRequest req = new EmailRequest();
+        req.setTo(asString(data.get("to")));
+        req.setSubject(asString(data.get("subject")));
+        req.setBody(asString(data.get("body")));
+        notificationService.sendEmail(req, eventId);
     }
 
     private void handlePush(NotifEventMessage message, UUID eventId) {
-        Map<String, Object> data = message.getData();
-        if (data == null) {
+        Map<String, Object> data = requireData(message, eventId, "SEND_PUSH");
+        PushRequest req = new PushRequest();
+        req.setDeviceToken(asString(data.get("deviceToken")));
+        req.setTitle(asString(data.get("title")));
+        req.setBody(asString(data.get("body")));
+        notificationService.sendPush(req, eventId);
+    }
+
+    private Map<String, Object> requireData(NotifEventMessage m, UUID eventId, String type) {
+        Map<String, Object> d = m.getData();
+        if (d == null) {
             throw new AmqpRejectAndDontRequeueException(
-                    "Missing data payload for SEND_PUSH, eventId=" + eventId);
+                    "Missing data payload for " + type + ", eventId=" + eventId);
         }
-
-        PushRequest request = new PushRequest();
-        request.setDeviceToken(asString(data.get("deviceToken")));
-        request.setTitle(asString(data.get("title")));
-        request.setBody(asString(data.get("body")));
-
-        notificationService.sendPush(request, eventId);
+        return d;
     }
 
-    private String asString(Object value) {
-        return value != null ? value.toString() : null;
-    }
+    private String asString(Object v) { return v != null ? v.toString() : null; }
 }

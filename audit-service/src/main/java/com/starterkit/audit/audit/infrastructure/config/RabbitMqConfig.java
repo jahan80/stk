@@ -29,6 +29,10 @@ public class RabbitMqConfig {
     public static final String TICKET_QUEUE = "audit.ticket.events";
     public static final String TICKET_ROUTING = "ticket.#";
 
+    // Notif delivery events (Step 2)
+    public static final String NOTIF_QUEUE = "audit.notif.events";
+    public static final String NOTIF_ROUTING = "notif.#";
+
     @Bean
     public TopicExchange eventsExchange() {
         return new TopicExchange(EXCHANGE, true, false);
@@ -85,6 +89,23 @@ public class RabbitMqConfig {
                 .with(TICKET_ROUTING);
     }
 
+    // ==================== NOTIF QUEUE ====================
+
+    @Bean
+    public Queue auditNotifQueue() {
+        return QueueBuilder.durable(NOTIF_QUEUE)
+                .withArgument("x-dead-letter-exchange", "starterkit.dlx")
+                .withArgument("x-dead-letter-routing-key", "audit.dead")
+                .build();
+    }
+
+    @Bean
+    public Binding auditNotifBinding(Queue auditNotifQueue, TopicExchange eventsExchange) {
+        return BindingBuilder.bind(auditNotifQueue)
+                .to(eventsExchange)
+                .with(NOTIF_ROUTING);
+    }
+
     // ==================== DEAD LETTER ====================
 
     public static final String DLX_EXCHANGE = "starterkit.dlx";
@@ -98,10 +119,6 @@ public class RabbitMqConfig {
 
     @Bean
     public Queue auditDlq() {
-        // Bounded DLQ: cap at 10_000 messages and 7-day TTL.
-        //
-        // NOTE: This queue has NO consumer registered.
-        // See NotifDlqListener for the rationale.
         return QueueBuilder.durable(DLQ_QUEUE)
                 .withArgument("x-message-ttl", 7L * 24 * 60 * 60 * 1000)
                 .withArgument("x-max-length", 10_000)
