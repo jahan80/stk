@@ -92,3 +92,57 @@ RabbitMQ = at-least-once. Consumers must be idempotent.
 - Integration tests for outbox → MQ → consumer chain
 - Notification template engine
 - Public profile backend endpoint
+
+## Gateway event publishing (observability, not business)
+
+`api-gateway` emits two event types:
+
+| Event | Routing key | Purpose |
+|---|---|---|
+| `REQUEST_RECEIVED`  | `gateway.request.received`  | Per-request audit |
+| `RESPONSE_SENT`     | `gateway.response.sent`     | Per-response audit (status, latency, size) |
+
+These are **observability events**, not business state. They are
+deliberately NOT routed through the transactional outbox:
+
+- They fire on EVERY request → high volume.
+- Losing a few is acceptable; business correctness is unaffected.
+- The audit service uses them for tracing/ops, not for state.
+
+### Publisher strategy
+
+Two implementations exist; the active one is chosen by
+`gateway.events.publisher`:
+
+| Value | Bean | Behavior |
+|---|---|---|
+| `async` (default) | `BoundedAsyncGatewayEventPublisher` | Enqueue → single worker thread → retry 3x → drop on exhaustion |
+| `sync`            | `SyncGatewayEventPublisher`            | Publish on the request thread; log on failure |
+
+### Backpressure semantics (async)
+
+- Bounded queue: `gateway.events.queue-capacity` (default 10 000).
+- When the queue is full → event is **dropped**:
+  - logged at WARN with `queue FULL`,
+  - counted in `GatewayEventPublisherStats.droppedQueueFull`.
+- Worker retries each event 3 times with small backoff.
+- After 3 failures → dropped, counted in `publishFailures`.
+
+This bounds memory and prevents the gateway from stalling when
+the broker is unavailable.
+
+### Operator visibility
+
+`GET /gateway/events/stats` (ADMIN only) returns:
+
+    {
+      "enqueued":           123456,
+      "published":          123450,
+      "droppedQueueFull":   3,
+      "publishFailures":    3,
+      "workerErrors":       0,
+      "lastErrorAt":        "2026-10-07T15:00:00Z",
+      "lastErrorSecondsAgo": 42
+    }
+
+Alert if `droppedQueueFull` or `publishFailures` grows.
