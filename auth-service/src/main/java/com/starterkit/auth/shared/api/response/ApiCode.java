@@ -139,6 +139,11 @@ public enum ApiCode implements com.starterkit.commons.web.ApiCode {
             "Invalid or expired password reset code"
     ),
 
+    VERIFICATION_RESEND_TOO_SOON(
+            "AUTH-VERIFY-003",
+            "Verification resend requested too soon"
+    ),
+
     PASSWORD_RESET_NOT_ALLOWED(
             "AUTH-PWRESET-002",
             "Password reset is not allowed"

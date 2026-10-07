@@ -32,6 +32,7 @@ public class MobileVerificationService {
     private final UserRepository userRepository;
     private final ConfigurationService configurationService;
     private final AuthEventPublisher eventPublisher;
+    private final VerificationThrottleService throttle;
 
     @Transactional
     public void sendVerificationCode(User user) {
@@ -45,6 +46,9 @@ public class MobileVerificationService {
             log.info("User {} mobile already verified", user.getId());
             return;
         }
+
+        // A3: enforce per-account cooldown between resends
+        throttle.enforceCooldownOrThrow(user, VerificationThrottleService.Channel.MOBILE);
 
         tokenRepository.deleteAllByUser(user);
         tokenRepository.flush();   // FIX: ensure DELETE hits DB before new INSERT
@@ -82,8 +86,12 @@ public class MobileVerificationService {
                 .orElseThrow(() -> new InvalidMobileVerificationCodeException());
 
         if (user.isMobileVerified()) {
-            throw new MobileAlreadyVerifiedException(mobile);
+            log.info("User {} mobile already verified", user.getId());
+            return;
         }
+
+        // A3: enforce per-account cooldown between resends
+        throttle.enforceCooldownOrThrow(user, VerificationThrottleService.Channel.MOBILE);
 
         MobileVerificationToken token = tokenRepository
                 .findTopByUserOrderByCreatedAtDesc(user)

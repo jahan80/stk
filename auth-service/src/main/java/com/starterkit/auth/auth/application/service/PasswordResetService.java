@@ -36,6 +36,7 @@ public class PasswordResetService {
     private final ConfigurationService configurationService;
     private final AuthEventPublisher eventPublisher;
     private final PasswordEncoder passwordEncoder;
+    private final VerificationThrottleService throttle;
 
     @Transactional
     public void sendResetCode(String email) {
@@ -54,6 +55,9 @@ public class PasswordResetService {
         }
 
         User user = userOpt.get();
+
+        // A3: enforce per-account cooldown between password-reset resends
+        throttle.enforceCooldownOrThrow(user, VerificationThrottleService.Channel.PASSWORD_RESET);
 
         // پاک کردن کدهای قدیمی
         tokenRepository.deleteAllByUser(user);

@@ -11,6 +11,7 @@ import com.starterkit.auth.auth.application.exception.InvalidMobileVerificationC
 import com.starterkit.auth.auth.application.exception.InvalidPasswordResetCodeException;
 import com.starterkit.auth.auth.application.exception.PasswordResetNotAllowedException;
 import com.starterkit.auth.auth.application.exception.InvalidVerificationCodeException;
+import com.starterkit.auth.auth.application.exception.VerificationResendTooSoonException;
 import com.starterkit.auth.auth.application.exception.MobileAlreadyVerifiedException;
 import com.starterkit.auth.auth.application.exception.MobileNotVerifiedException;
 import com.starterkit.auth.auth.application.exception.LoginException;
@@ -426,4 +427,21 @@ public class GlobalExceptionHandler {
         return responseFactory.error(ApiCode.PASSWORD_RESET_NOT_ALLOWED);
     }
 
+
+    // =========================================================
+    // 10. Verification Resend Cooldown
+    // =========================================================
+
+    @ExceptionHandler(VerificationResendTooSoonException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTooSoon(
+            VerificationResendTooSoonException exception
+    ) {
+        log.warn("Resend too soon: channel={}, remaining={}s",
+                exception.getChannel(), exception.getRemainingSeconds());
+
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(exception.getRemainingSeconds()))
+                .body(responseFactory.error(ApiCode.VERIFICATION_RESEND_TOO_SOON));
+    }
 }

@@ -9,6 +9,7 @@ import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.EmailVerificationTokenRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import com.starterkit.auth.configuration.application.ConfigurationService;
+import com.starterkit.auth.auth.application.service.VerificationThrottleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class EmailVerificationService {
     private final UserRepository userRepository;
     private final ConfigurationService configurationService;
     private final AuthEventPublisher eventPublisher;
+    private final VerificationThrottleService throttle;
 
     @Transactional
     public void sendVerificationCode(User user) {
@@ -47,6 +49,9 @@ public class EmailVerificationService {
             log.info("User {} email already verified", user.getId());
             return;
         }
+
+        // A3: enforce per-account cooldown between resends
+        throttle.enforceCooldownOrThrow(user, VerificationThrottleService.Channel.EMAIL);
 
         // پاک کردن tokenهای قدیمی
         tokenRepository.deleteAllByUser(user);
@@ -85,8 +90,12 @@ public class EmailVerificationService {
                 .orElseThrow(() -> new InvalidVerificationCodeException());
 
         if (user.isEmailVerified()) {
-            throw new EmailAlreadyVerifiedException(email);
+            log.info("User {} email already verified", user.getId());
+            return;
         }
+
+        // A3: enforce per-account cooldown between resends
+        throttle.enforceCooldownOrThrow(user, VerificationThrottleService.Channel.EMAIL);
 
         EmailVerificationToken token = tokenRepository
                 .findTopByUserOrderByCreatedAtDesc(user)
