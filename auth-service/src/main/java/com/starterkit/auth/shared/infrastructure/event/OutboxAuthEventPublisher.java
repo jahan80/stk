@@ -37,7 +37,12 @@ public class OutboxAuthEventPublisher implements AuthEventPublisher {
 
     @Override
     public void publish(AuthEvent event) {
+        // FIX P1-5: derive a meaningful aggregateId from either
+        // `userId` (business events) or `relatedUserId` (notif commands).
         Object userId = event.data().get("userId");
+        if (userId == null) {
+            userId = event.data().get("relatedUserId");
+        }
         String aggregateId = userId != null ? userId.toString() : "unknown";
 
         // Let exceptions propagate: they will roll back the caller's TX.

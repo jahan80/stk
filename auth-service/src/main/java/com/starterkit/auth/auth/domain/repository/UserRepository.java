@@ -21,6 +21,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     long countByRole(Role role);
 
+    /**
+     * Batch lookup by username (case-sensitive, exact match).
+     * Used by service-to-service mention resolution.
+     */
+    List<User> findByUsernameIn(java.util.Collection<String> usernames);
+
+    /**
+     * All users with a given role name (used by ticket-service to
+     * discover admins for on-create notifications).
+     */
+    @Query("SELECT u FROM User u JOIN FETCH u.role r WHERE r.name = :roleName")
+    List<User> findAllByRoleName(@Param("roleName") String roleName);
+
+
+
     @Query("SELECT u FROM User u JOIN FETCH u.role ORDER BY u.id")
     List<User> findAllWithRole();
 

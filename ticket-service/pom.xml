@@ -111,7 +111,15 @@
             <artifactId>outbox-commons</artifactId>
             <version>${project.version}</version>
         </dependency>
-</dependencies>
+
+        <!-- StarterKit shared web/trace utilities -->
+        <dependency>
+            <groupId>com.starterkit</groupId>
+            <artifactId>starterkit-commons</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+    </dependencies>
 
     <build>
         <plugins>

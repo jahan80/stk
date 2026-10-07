@@ -1,8 +1,8 @@
 package com.starterkit.notif.shared.api;
 
 import com.starterkit.notif.shared.api.response.ApiCode;
-import com.starterkit.notif.shared.api.response.ApiResponse;
-import com.starterkit.notif.shared.api.response.ApiResponseFactory;
+import com.starterkit.commons.web.ApiResponse;
+import com.starterkit.commons.web.ApiResponseFactory;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

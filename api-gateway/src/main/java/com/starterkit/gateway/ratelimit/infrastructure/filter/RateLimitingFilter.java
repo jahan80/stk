@@ -26,6 +26,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Component
@@ -38,6 +40,21 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
     private final BucketRegistry bucketRegistry;
     private final RateLimitProperties properties;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // ========================================================
+    // P2-14: Simple in-memory circuit breaker around config load.
+    // Prevents log spam + repeated DB hits when the config source
+    // is unavailable.
+    //   - after FAILURE_THRESHOLD consecutive failures → OPEN
+    //   - OPEN for COOLDOWN_MS, then HALF-OPEN (one probe)
+    //   - success in HALF-OPEN → CLOSED (reset counters)
+    //   - failure in HALF-OPEN → OPEN again for COOLDOWN_MS
+    // ========================================================
+    private static final int  CB_FAILURE_THRESHOLD = 3;
+    private static final long CB_COOLDOWN_MS       = 10_000L;
+
+    private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
+    private final AtomicLong    openUntilMs         = new AtomicLong(0L);
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -74,10 +91,14 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
                 ? config.getBurstCapacity()
                 : config.getRequestsPerWindow();
 
-        long refillRate = Math.max(1,
-                config.getRequestsPerWindow() / Math.max(1, config.getWindowSeconds()));
-
-        TokenBucket bucket = bucketRegistry.getOrCreate(key, capacity, refillRate);
+        // FIX P1-1: no integer division here. TokenBucket computes
+        // a fractional per-ms refill rate internally with double precision.
+        TokenBucket bucket = bucketRegistry.getOrCreate(
+                key,
+                capacity,
+                config.getRequestsPerWindow(),
+                config.getWindowSeconds()
+        );
 
         if (!bucket.tryConsume()) {
             return tooManyRequests(exchange, config, bucket);
@@ -106,8 +127,28 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
     private record MatchResult(boolean found, ActiveRateLimitResponse config, boolean error) {}
 
     private MatchResult findMatchingConfig(String path, String method) {
+
+        // ---- P2-14: Circuit breaker gate ----
+        long now = System.currentTimeMillis();
+        long openUntil = openUntilMs.get();
+        boolean halfOpen = false;
+
+        if (now < openUntil) {
+            // Circuit OPEN: skip DB entirely.
+            return new MatchResult(false, null, true);
+        }
+
+        if (openUntil > 0 && now >= openUntil) {
+            // Cooldown elapsed → HALF-OPEN: allow a single probe.
+            halfOpen = true;
+        }
+
         try {
             List<ActiveRateLimitResponse> configs = configService.getActive();
+
+            // success → reset breaker
+            consecutiveFailures.set(0);
+            openUntilMs.set(0L);
 
             Optional<ActiveRateLimitResponse> match = configs.stream()
                     .filter(c -> matches(c, path, method))
@@ -116,7 +157,28 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
             return new MatchResult(match.isPresent(), match.orElse(null), false);
 
         } catch (Exception ex) {
-            log.error("Failed to load rate limit configs", ex);
+            int failures = consecutiveFailures.incrementAndGet();
+
+            if (halfOpen || failures >= CB_FAILURE_THRESHOLD) {
+                // Trip (or re-trip) the breaker.
+                openUntilMs.set(System.currentTimeMillis() + CB_COOLDOWN_MS);
+
+                // Log the trip ONCE, not per request.
+                if (!halfOpen) {
+                    log.error("Rate-limit config load failing ({} consecutive). " +
+                              "Circuit OPEN for {} ms. Last error: {}",
+                            failures, CB_COOLDOWN_MS, ex.getMessage());
+                } else {
+                    log.warn("Rate-limit config still failing in HALF-OPEN. " +
+                             "Circuit re-OPEN for {} ms. Error: {}",
+                            CB_COOLDOWN_MS, ex.getMessage());
+                }
+            } else {
+                // Below threshold: log at WARN, not ERROR, to avoid spam.
+                log.warn("Rate-limit config load failed ({}/{}): {}",
+                        failures, CB_FAILURE_THRESHOLD, ex.getMessage());
+            }
+
             return new MatchResult(false, null, true);
         }
     }
@@ -140,17 +202,19 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
         String clientIp = getClientIp(request);
         String path = request.getPath().value();
 
+        // FIX P1-2: X-User-Id is guaranteed to be *verified* here.
+        // IdentitySanitizingFilter strips client-supplied headers and
+        // re-injects them only after successful JWT verification.
+        String verifiedUserId = request.getHeaders().getFirst("X-User-Id");
+        String userPart = (verifiedUserId != null && !verifiedUserId.isBlank())
+                ? "user:" + verifiedUserId
+                : "anon:" + clientIp;
+
         return switch (config.getKeyType()) {
             case "IP" -> clientIp;
             case "IP_PATH" -> clientIp + ":" + path;
-            case "USER" -> {
-                String userId = request.getHeaders().getFirst("X-User-Id");
-                yield userId != null ? "user:" + userId : clientIp;
-            }
-            case "USER_PATH" -> {
-                String userId = request.getHeaders().getFirst("X-User-Id");
-                yield (userId != null ? "user:" + userId : clientIp) + ":" + path;
-            }
+            case "USER" -> userPart;
+            case "USER_PATH" -> userPart + ":" + path;
             default -> clientIp + ":" + path;
         };
     }

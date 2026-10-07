@@ -2,13 +2,14 @@ package com.starterkit.auth.auth.application.service;
 
 import com.starterkit.auth.auth.application.exception.InvalidPasswordResetCodeException;
 import com.starterkit.auth.auth.application.exception.PasswordResetNotAllowedException;
+import com.starterkit.auth.auth.application.event.AuthEventPublisher;
+import com.starterkit.auth.auth.application.event.NotifSendEmailEvent;
 import com.starterkit.auth.auth.domain.entity.PasswordResetToken;
 import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.PasswordResetTokenRepository;
 import com.starterkit.auth.auth.domain.repository.RefreshTokenRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import com.starterkit.auth.configuration.application.ConfigurationService;
-import com.starterkit.auth.shared.infrastructure.event.NotifEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,7 +34,7 @@ public class PasswordResetService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final ConfigurationService configurationService;
-    private final NotifEventPublisher notifEventPublisher;
+    private final AuthEventPublisher eventPublisher;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -56,6 +57,7 @@ public class PasswordResetService {
 
         // پاک کردن کدهای قدیمی
         tokenRepository.deleteAllByUser(user);
+        tokenRepository.flush();   // FIX: ensure DELETE hits DB before new INSERT
 
         // ساخت کد
         int codeLength = configurationService.getInteger(
@@ -75,7 +77,8 @@ public class PasswordResetService {
         String subject = "Password Reset";
         String body = buildPasswordResetEmailBody(user.getUsername(), code, ttlSeconds / 60);
 
-        notifEventPublisher.sendEmail(email, subject, body);
+        eventPublisher.publish(new NotifSendEmailEvent(
+                email, subject, body, user.getId()));
 
         log.info("Password reset code sent for user {} ({})", user.getId(), email);
     }

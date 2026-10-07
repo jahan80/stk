@@ -65,4 +65,35 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     // ====== Counters ======
 
     long countByGroupId(Long groupId);
+
+    long countByCategoryId(Long categoryId);
+
+    // ====== Auto-close (P2-11) ======
+
+    /**
+     * Tickets eligible for auto-close:
+     *   - status = RESOLVED
+     *   - resolvedAt is not null and <= cutoff
+     *
+     * Bounded by {@code limit}. Ordered oldest-first so a backlog is
+     * drained gradually across runs.
+     */
+    @Query("""
+        SELECT t FROM Ticket t
+        WHERE t.status = :status
+          AND t.resolvedAt IS NOT NULL
+          AND t.resolvedAt <= :cutoff
+        ORDER BY t.resolvedAt ASC
+    """)
+    List<Ticket> findAutoCloseCandidates(
+            @Param("status") TicketStatus status,
+            @Param("cutoff") java.time.Instant cutoff,
+            org.springframework.data.domain.Pageable pageable);
+
+    default List<Ticket> findAutoCloseCandidates(
+            TicketStatus status, java.time.Instant cutoff, int limit) {
+        return findAutoCloseCandidates(
+                status, cutoff,
+                org.springframework.data.domain.PageRequest.of(0, limit));
+    }
 }

@@ -77,8 +77,8 @@ services:
       context: .
       dockerfile: audit-service/Dockerfile
     container_name: starterkit-audit-service
-    ports:
-      - "8082:8082"
+    # FIX P1-4: port 8082 NOT published to host.
+    # Internal-only. Access via api-gateway (8080).
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/starterkit?currentSchema=audit,public
       SPRING_DATASOURCE_USERNAME: sa

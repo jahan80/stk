@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -55,6 +56,31 @@ public class UserManagementService {
         User user = userRepository.findByIdWithRole(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
         return toDetail(user);
+    }
+
+    /**
+     * Batch resolve usernames to user IDs.
+     * Usernames that do not exist are simply omitted from the result map.
+     */
+    public Map<String, Long> getUserIdsByUsernames(java.util.Set<String> usernames) {
+        if (usernames == null || usernames.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findByUsernameIn(usernames).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        User::getUsername,
+                        User::getId,
+                        (a, b) -> a
+                ));
+    }
+
+    /**
+     * All user IDs whose role is ADMIN.
+     */
+    public List<Long> getAdminUserIds() {
+        return userRepository.findAllByRoleName("ADMIN").stream()
+                .map(User::getId)
+                .toList();
     }
 
     @Transactional

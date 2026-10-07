@@ -2,12 +2,13 @@ package com.starterkit.auth.auth.application.service;
 
 import com.starterkit.auth.auth.application.exception.EmailAlreadyVerifiedException;
 import com.starterkit.auth.auth.application.exception.InvalidVerificationCodeException;
+import com.starterkit.auth.auth.application.event.AuthEventPublisher;
+import com.starterkit.auth.auth.application.event.NotifSendEmailEvent;
 import com.starterkit.auth.auth.domain.entity.EmailVerificationToken;
 import com.starterkit.auth.auth.domain.entity.User;
 import com.starterkit.auth.auth.domain.repository.EmailVerificationTokenRepository;
 import com.starterkit.auth.auth.domain.repository.UserRepository;
 import com.starterkit.auth.configuration.application.ConfigurationService;
-import com.starterkit.auth.shared.infrastructure.event.NotifEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ public class EmailVerificationService {
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final ConfigurationService configurationService;
-    private final NotifEventPublisher notifEventPublisher;
+    private final AuthEventPublisher eventPublisher;
 
     @Transactional
     public void sendVerificationCode(User user) {
@@ -49,6 +50,7 @@ public class EmailVerificationService {
 
         // پاک کردن tokenهای قدیمی
         tokenRepository.deleteAllByUser(user);
+        tokenRepository.flush();   // FIX: ensure DELETE hits DB before new INSERT
 
         // ساخت کد
         int codeLength = configurationService.getInteger(
@@ -70,7 +72,8 @@ public class EmailVerificationService {
         String subject = "Verify your email";
         String body = buildVerificationEmailBody(user.getUsername(), code, ttlSeconds / 60);
 
-        notifEventPublisher.sendEmail(user.getEmail(), subject, body);
+        eventPublisher.publish(new NotifSendEmailEvent(
+                user.getEmail(), subject, body, user.getId()));
 
         log.info("Verification code sent to user {} ({})", user.getId(), user.getEmail());
     }

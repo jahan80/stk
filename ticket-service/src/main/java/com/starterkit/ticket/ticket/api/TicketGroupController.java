@@ -1,8 +1,8 @@
 package com.starterkit.ticket.ticket.api;
 
 import com.starterkit.ticket.shared.api.response.ApiCode;
-import com.starterkit.ticket.shared.api.response.ApiResponse;
-import com.starterkit.ticket.shared.api.response.ApiResponseFactory;
+import com.starterkit.commons.web.ApiResponse;
+import com.starterkit.commons.web.ApiResponseFactory;
 import com.starterkit.ticket.shared.infrastructure.jwt.UserPrincipal;
 import com.starterkit.ticket.ticket.api.dto.*;
 import com.starterkit.ticket.ticket.application.service.TicketGroupService;

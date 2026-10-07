@@ -16,8 +16,16 @@ public class BucketRegistry {
             .maximumSize(10_000)
             .build();
 
-    public TokenBucket getOrCreate(String key, long capacity, long refillRate) {
-        return buckets.get(key, k -> new TokenBucket(capacity, refillRate));
+    public TokenBucket getOrCreate(String key,
+                                    long capacity,
+                                    int requestsPerWindow,
+                                    int windowSeconds) {
+        return buckets.get(key, k ->
+                new TokenBucket(capacity, requestsPerWindow, windowSeconds));
+    }
+
+    public void invalidate(String key) {
+        buckets.invalidate(key);
     }
 
     public void clear() {

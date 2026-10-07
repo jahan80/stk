@@ -8,8 +8,8 @@ import java.util.Map;
  *
  * Routing: notif.email.send → notif-service
  *
- * Unlike NotifEventPublisher (which is best-effort), this event goes
- * through the outbox so it is delivered at-least-once.
+ * Goes through the transactional outbox so it is delivered
+ * at-least-once, even if RabbitMQ is temporarily unavailable.
  */
 public record NotifSendEmailEvent(
         String to,

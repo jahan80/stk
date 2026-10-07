@@ -1,5 +1,6 @@
 package com.starterkit.ticket.ticket.application.service;
 
+import com.starterkit.ticket.shared.infrastructure.client.UserClient;
 import com.starterkit.ticket.shared.infrastructure.jwt.UserPrincipal;
 import com.starterkit.ticket.ticket.api.dto.*;
 import com.starterkit.ticket.ticket.application.event.*;
@@ -35,6 +36,7 @@ public class TicketService {
     private final TicketEventPublisher eventPublisher;
     private final NotificationService notificationService;
     private final MentionService mentionService;
+    private final UserClient userClient;
     private final TicketGroupMemberRepository groupMemberRepo;
 
     // =====================================================
@@ -74,12 +76,27 @@ public class TicketService {
                 category.getName()
         ));
 
-        // Notify admins if config enabled
+        // Notify admins if config enabled.
+        // Admin user IDs are resolved from auth-service (best-effort:
+        // empty list on failure — the ticket still gets created).
         boolean notifyAdmins = config.getBoolean("TICKET.NOTIFY.ADMIN.ON_CREATE", true);
         if (notifyAdmins) {
-            // We don't have admin user IDs in ticket-service.
-            // For now, notification is via event + audit. Admin in-app notification
-            // will be added in a later phase (needs auth-service call).
+            java.util.List<Long> adminIds = userClient.getAdminIds();
+            if (!adminIds.isEmpty()) {
+                notificationService.createForMany(
+                        adminIds,
+                        NotificationType.TICKET_CREATED,
+                        String.format("New ticket: %s", saved.getTicketNumber()),
+                        saved.getTitle(),
+                        saved.getId(),
+                        user.getId(),
+                        "/tickets/" + saved.getId()
+                );
+                log.info("Admin notifications sent for ticket {} to {} admin(s)",
+                        saved.getTicketNumber(), adminIds.size());
+            } else {
+                log.debug("No admins to notify for ticket {}", saved.getTicketNumber());
+            }
         }
 
         return toResponse(saved, true);
@@ -171,12 +188,6 @@ public class TicketService {
 
         notifyStatusChange(saved, old, TicketStatus.CLOSED, user.getId());
 
-        // Email notification: no recipient email available in ticket-service.
-        // The command is designed to go through outbox when we have it.
-        // TODO: fetch email via /auth/users/{id}/contact and call enqueueTicketEmail().
-        log.debug("Email skipped for closed ticket {} (no email available)",
-                saved.getTicketNumber());
-
         return toResponse(saved, true);
     }
 
@@ -210,9 +221,6 @@ public class TicketService {
                 old.name(), newStatus.name(), user.getId(), saved.getCreatedBy()));
 
         notifyStatusChange(saved, old, newStatus, user.getId());
-
-        log.debug("Email skipped for status change on ticket {} (no email available)",
-                saved.getTicketNumber());
 
         return toResponse(saved, true);
     }
@@ -278,9 +286,6 @@ public class TicketService {
                 user.getId(),
                 "/tickets/" + saved.getId()
         );
-
-        log.debug("Email skipped for assignment of ticket {} (no email available)",
-                saved.getTicketNumber());
 
         return toResponse(saved, true);
     }
@@ -349,10 +354,27 @@ public class TicketService {
                 "/tickets/" + t.getId()
         );
 
-        // Mentions
-        var mentioned = mentionService.extractUsernames(body);
+        // Mentions — resolve usernames to user IDs and notify.
+        java.util.Set<String> mentioned = mentionService.extractUsernames(body);
         if (!mentioned.isEmpty()) {
-            log.info("Mentions found in comment: {}", mentioned);
+            java.util.Map<String, Long> userIds = userClient.getUsersByUsernames(mentioned);
+            if (!userIds.isEmpty()) {
+                java.util.List<Long> recipientIds = new java.util.ArrayList<>(userIds.values());
+
+                notificationService.createForMany(
+                        recipientIds,
+                        NotificationType.TICKET_MENTIONED,
+                        String.format("You were mentioned on %s", t.getTicketNumber()),
+                        body.length() > 200 ? body.substring(0, 200) + "..." : body,
+                        t.getId(),
+                        user.getId(),
+                        "/tickets/" + t.getId()
+                );
+                log.info("Mention notifications sent for ticket {} to {} user(s)",
+                        t.getTicketNumber(), recipientIds.size());
+            } else {
+                log.debug("Mentions found but none resolved: {}", mentioned);
+            }
         }
 
         return mapper.toComment(saved);
@@ -370,35 +392,6 @@ public class TicketService {
     // NOTIFICATION HELPER (best-effort email via notif-service)
     // =====================================================
 
-    /**
-     * Enqueue an email notification through the transactional outbox.
-     *
-     * The command is persisted in the same transaction as the ticket
-     * change, then asynchronously published to RabbitMQ → notif-service.
-     * This guarantees at-least-once delivery even if RabbitMQ is down.
-     *
-     * Note: the "to" address must be provided by the caller. When we only
-     * have a userId, we currently skip (no synchronous call to auth-service).
-     * The dedicated /auth/users/{id}/contact endpoint (service-to-service)
-     * is tracked as a follow-up.
-     */
-    private void enqueueTicketEmail(String to, String subject, String body, Long relatedUserId) {
-        if (to == null || to.isBlank()) {
-            log.debug("Skipping email: no recipient (userId={})", relatedUserId);
-            return;
-        }
-        try {
-            eventPublisher.publish(new NotifSendEmailEvent(
-                    to, subject, body, relatedUserId
-            ));
-            log.debug("Email command enqueued via outbox: to={}, subject={}", to, subject);
-        } catch (Exception ex) {
-            // Failing to enqueue the outbox row must roll back the ticket
-            // transaction. We re-throw to preserve atomicity.
-            log.error("Failed to enqueue email command for ticket", ex);
-            throw ex;
-        }
-    }
 
     // =====================================================
     // HELPERS

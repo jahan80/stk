@@ -46,7 +46,7 @@ Consumers are idempotent: `notif.notifications.event_id` and `audit.audit_events
     mvn clean install -DskipTests
     docker compose up -d --build
 
-    curl -X POST http://localhost:8081/auth/login \
+    curl -X POST http://localhost:8080/auth/login \
       -H "Content-Type: application/json" \
       -d '{"identifier":"admin","password":"admin123"}'
 
