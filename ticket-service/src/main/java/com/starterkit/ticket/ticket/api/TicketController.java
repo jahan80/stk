@@ -5,7 +5,10 @@ import com.starterkit.commons.web.ApiResponse;
 import com.starterkit.commons.web.ApiResponseFactory;
 import com.starterkit.ticket.shared.infrastructure.jwt.UserPrincipal;
 import com.starterkit.ticket.ticket.api.dto.*;
-import com.starterkit.ticket.ticket.application.service.TicketService;
+import com.starterkit.ticket.ticket.application.service.ticket.TicketAssignmentService;
+import com.starterkit.ticket.ticket.application.service.ticket.TicketCommandService;
+import com.starterkit.ticket.ticket.application.service.ticket.TicketCommentService;
+import com.starterkit.ticket.ticket.application.service.ticket.TicketQueryService;
 import com.starterkit.ticket.ticket.domain.entity.TicketPriority;
 import com.starterkit.ticket.ticket.domain.entity.TicketStatus;
 import jakarta.validation.Valid;
@@ -19,16 +22,28 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Ticket REST API.
+ *
+ * Delegates to four specialized services:
+ *   - TicketCommandService     (create, close, changeStatus)
+ *   - TicketQueryService       (list, get, listComments)
+ *   - TicketAssignmentService  (assign, assignToGroup)
+ *   - TicketCommentService     (addComment)
+ */
 @RestController
 @RequestMapping("/tickets")
 @RequiredArgsConstructor
 public class TicketController {
 
-    private final TicketService ticketService;
+    private final TicketCommandService commandService;
+    private final TicketQueryService queryService;
+    private final TicketAssignmentService assignmentService;
+    private final TicketCommentService commentService;
     private final ApiResponseFactory responseFactory;
 
     // =====================================================
-    // LIST (access-aware)
+    // LIST
     // =====================================================
 
     @GetMapping
@@ -43,7 +58,7 @@ public class TicketController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return responseFactory.success(ApiCode.SUCCESS,
-                ticketService.list(user, status, priority, groupId, unassignedOnly, assignedOnly,
+                queryService.list(user, status, priority, groupId, unassignedOnly, assignedOnly,
                         PageRequest.of(page, Math.min(size, 100))));
     }
 
@@ -59,7 +74,7 @@ public class TicketController {
             @Valid @RequestBody CreateTicketRequest req
     ) {
         return responseFactory.success(ApiCode.TICKET_CREATED,
-                ticketService.create(user, req));
+                commandService.create(user, req));
     }
 
     // =====================================================
@@ -71,11 +86,11 @@ public class TicketController {
             @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long id
     ) {
-        return responseFactory.success(ApiCode.SUCCESS, ticketService.get(user, id));
+        return responseFactory.success(ApiCode.SUCCESS, queryService.get(user, id));
     }
 
     // =====================================================
-    // CLOSE (owner)
+    // CLOSE
     // =====================================================
 
     @PostMapping("/{id}/close")
@@ -83,11 +98,11 @@ public class TicketController {
             @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long id
     ) {
-        return responseFactory.success(ApiCode.SUCCESS, ticketService.close(user, id));
+        return responseFactory.success(ApiCode.SUCCESS, commandService.close(user, id));
     }
 
     // =====================================================
-    // CHANGE STATUS (agent/admin)
+    // STATUS
     // =====================================================
 
     @PostMapping("/{id}/status")
@@ -97,11 +112,11 @@ public class TicketController {
             @Valid @RequestBody ChangeStatusRequest req
     ) {
         return responseFactory.success(ApiCode.SUCCESS,
-                ticketService.changeStatus(user, id, req.getStatus()));
+                commandService.changeStatus(user, id, req.getStatus()));
     }
 
     // =====================================================
-    // ASSIGN (agent/admin)
+    // ASSIGN
     // =====================================================
 
     @PostMapping("/{id}/assign")
@@ -111,12 +126,8 @@ public class TicketController {
             @Valid @RequestBody AssignTicketRequest req
     ) {
         return responseFactory.success(ApiCode.SUCCESS,
-                ticketService.assign(user, id, req.getAssigneeId()));
+                assignmentService.assign(user, id, req.getAssigneeId()));
     }
-
-    // =====================================================
-    // ASSIGN TO GROUP (admin only)
-    // =====================================================
 
     @PostMapping("/{id}/assign-group")
     public ApiResponse<TicketResponse> assignToGroup(
@@ -125,7 +136,7 @@ public class TicketController {
             @RequestParam(required = false) Long groupId
     ) {
         return responseFactory.success(ApiCode.SUCCESS,
-                ticketService.assignToGroup(user, id, groupId));
+                assignmentService.assignToGroup(user, id, groupId));
     }
 
     // =====================================================
@@ -138,7 +149,7 @@ public class TicketController {
             @PathVariable Long id
     ) {
         return responseFactory.success(ApiCode.SUCCESS,
-                ticketService.listComments(user, id));
+                queryService.listComments(user, id));
     }
 
     @PostMapping("/{id}/comments")
@@ -150,6 +161,6 @@ public class TicketController {
             @Valid @RequestBody AddCommentRequest req
     ) {
         return responseFactory.success(ApiCode.COMMENT_ADDED,
-                ticketService.addComment(user, id, req.getBody()));
+                commentService.addComment(user, id, req.getBody()));
     }
 }
