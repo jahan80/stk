@@ -4,6 +4,71 @@ All notable changes to StarterKit are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v16.0.0] — 2026-10-10
+
+Release focused on architecture cleanup and security hardening.
+
+### Added — notification delivery is fully event-driven
+
+- **Notification retry (P0)** — status-aware idempotency; the
+  listener now only ACKs on terminal success, and a dedicated
+  retry job owns FAILED rows with row-level lease (FOR UPDATE
+  SKIP LOCKED). Backoff: 30s -> 60s -> 5m -> 30m -> 2h.
+- **Delivery outcomes in audit** — notif-service publishes
+  NOTIFICATION_SENT / FAILED / EXHAUSTED to audit-service.
+- **Bounded async gateway event publisher** — token bucket
+  queue with queue-full drop + operator stats endpoint
+  /gateway/events/stats.
+- **Independent IN_APP channel** in notif-service with its own
+  JWT verification, /notify/me API, and per-recipient
+  deterministic event_id derivation.
+- **Event-driven IN_APP delivery (D2)** — NOTIFICATION_REQUESTED
+  is the single command event for all in-app notifications.
+  ticket.notifications table dropped (V17).
+- **Per-account verification resend cooldown** enforced in
+  auth-service (email, mobile, password reset).
+
+### Changed — security hardening
+
+- Host ports for notif-service (8083) and ticket-service (8084)
+  removed; services are now internal-only.
+- Pagination `size` parameter capped at 100 on all list
+  endpoints (audit, notif, ticket).
+- APP_DEFAULT_ADMIN_ENABLED now defaults to false in
+  docker-compose.yml; dev must opt in explicitly.
+
+### Changed — architecture
+
+- **TicketService split** into TicketCommandService,
+  TicketQueryService, TicketAssignmentService,
+  TicketCommentService.
+- **Dockerfile strategy** switched to host-build runtime-only:
+  jars are built on the host with Maven and Docker only
+  packages the runtime. Build time 6-10 min -> 20 sec.
+- **notif-service** now verifies JWTs independently
+  (SecurityConfig, JwtAuthenticationFilter, public key).
+
+### Removed
+
+- ticket.notifications (V17)
+- ticket.NotificationService, ExternalNotificationDispatcher,
+  TicketNotificationController, TicketNotification entity
+- NotifSendEmailEvent / NotifSendSmsEvent (replaced by
+  unified NotifRequestedEvent)
+
+### Documentation
+
+- ARCHITECTURE.md: rate limiting in distributed deployment.
+- CHANGELOG.md: this file.
+
+### Migration notes
+
+- Flyway V5 (notif), V17 (ticket), V27 (auth) run automatically
+  on service startup.
+- **Breaking for frontend**: /tickets/notifications is gone.
+  Use /notify/me (GET), /notify/me/unread-count,
+  /notify/me/{id}/read, /notify/me/read-all.
+
 ## [v15.0.0] — 2026-10-07
 
 Reliability and observability release. Fixes a silent provider-retry bug

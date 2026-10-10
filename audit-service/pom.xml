@@ -11,7 +11,7 @@
     <parent>
         <groupId>com.starterkit</groupId>
         <artifactId>starterkit</artifactId>
-        <version>15.0.0</version>
+        <version>16.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
