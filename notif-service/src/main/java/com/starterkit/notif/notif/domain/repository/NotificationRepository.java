@@ -98,4 +98,45 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
         WHERE n.status = 'FAILED' AND n.attempts >= :maxAttempts
     """)
     long countExhausted(@Param("maxAttempts") int maxAttempts);
+
+    // =====================================================
+    // IN_APP queries (step D)
+    // =====================================================
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT n FROM Notification n
+        WHERE n.channel = IN_APP
+          AND n.recipientUserId = :userId
+          AND (:unreadOnly = false OR n.readAt IS NULL)
+        ORDER BY n.createdAt DESC
+    """)
+    org.springframework.data.domain.Page<Notification> findInAppForUser(
+            @org.springframework.data.repository.query.Param("userId") Long userId,
+            @org.springframework.data.repository.query.Param("unreadOnly") boolean unreadOnly,
+            org.springframework.data.domain.Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(n) FROM Notification n
+        WHERE n.channel = IN_APP
+          AND n.recipientUserId = :userId
+          AND n.readAt IS NULL
+    """)
+    long countUnreadInApp(@org.springframework.data.repository.query.Param("userId") Long userId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("""
+        UPDATE Notification n SET n.readAt = :now
+        WHERE n.id = :id AND n.recipientUserId = :userId AND n.readAt IS NULL
+    """)
+    int markRead(@org.springframework.data.repository.query.Param("id") Long id,
+                 @org.springframework.data.repository.query.Param("userId") Long userId,
+                 @org.springframework.data.repository.query.Param("now") java.time.Instant now);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("""
+        UPDATE Notification n SET n.readAt = :now
+        WHERE n.channel = IN_APP AND n.recipientUserId = :userId AND n.readAt IS NULL
+    """)
+    int markAllRead(@org.springframework.data.repository.query.Param("userId") Long userId,
+                    @org.springframework.data.repository.query.Param("now") java.time.Instant now);
 }

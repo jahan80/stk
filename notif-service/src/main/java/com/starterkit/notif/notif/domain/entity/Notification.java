@@ -36,7 +36,6 @@ public class Notification {
     /**
      * Source event UUID (from the producer service).
      * UNIQUE — one notification row per source event.
-     * Retries reuse this same row (attempts++).
      */
     @Column(name = "event_id", nullable = false, unique = true)
     private UUID eventId;
@@ -47,6 +46,13 @@ public class Notification {
 
     @Column(nullable = false, length = 255)
     private String recipient;
+
+    /**
+     * Set for IN_APP channel only. NULL for external channels.
+     * Denormalized from `recipient` for query efficiency.
+     */
+    @Column(name = "recipient_user_id")
+    private Long recipientUserId;
 
     @Column(length = 500)
     private String subject;
@@ -94,6 +100,20 @@ public class Notification {
     @Column(name = "claimed_by", length = 100)
     private String claimedBy;
 
+    // ===== IN_APP-specific fields (V5) =====
+
+    @Column(name = "read_at")
+    private Instant readAt;
+
+    @Column(length = 500)
+    private String link;
+
+    @Column(name = "ticket_id")
+    private Long ticketId;
+
+    @Column(name = "actor_id")
+    private Long actorId;
+
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();
@@ -103,7 +123,6 @@ public class Notification {
 
     // ===== State transitions =====
 
-    /** Provider call succeeded → terminal state. */
     public void markSent(String providerMessageId) {
         this.status = Status.SENT;
         this.providerMessageId = providerMessageId;
@@ -113,11 +132,6 @@ public class Notification {
         clearClaim();
     }
 
-    /**
-     * Provider call failed → keep row for retry.
-     * @param rawError   technical message (provider exception / nack)
-     * @param backoff    when to try again
-     */
     public void markRetry(String rawError, Instant backoff) {
         this.status = Status.FAILED;
         this.attempts++;
@@ -125,6 +139,12 @@ public class Notification {
         this.errorMessage = truncate(rawError, 500);
         this.nextAttemptAt = backoff;
         clearClaim();
+    }
+
+    public void markRead() {
+        if (this.readAt == null) {
+            this.readAt = Instant.now();
+        }
     }
 
     public void claim(String instanceId, Instant leaseUntil) {
@@ -142,11 +162,11 @@ public class Notification {
         return s.length() <= max ? s : s.substring(0, max);
     }
 
-    public enum Channel { SMS, EMAIL, PUSH }
+    public enum Channel { SMS, EMAIL, PUSH, IN_APP }
 
     public enum Status {
-        PENDING,   // never attempted yet
-        SENT,      // terminal success
-        FAILED     // attempted, will be retried until maxAttempts
+        PENDING,
+        SENT,
+        FAILED
     }
 }

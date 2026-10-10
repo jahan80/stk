@@ -107,6 +107,8 @@ public class NotificationService {
             case EMAIL -> emailProvider.send(n.getRecipient(), n.getSubject(), n.getBody());
             case SMS   -> smsProvider.send(n.getRecipient(), n.getBody());
             case PUSH  -> pushProvider.send(n.getRecipient(), n.getSubject(), n.getBody());
+            case IN_APP -> throw new IllegalStateException(
+                    "IN_APP notifications are synchronous and never go through the retry/provider path");
         };
     }
 
