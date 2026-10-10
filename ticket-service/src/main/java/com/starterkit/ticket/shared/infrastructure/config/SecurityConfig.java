@@ -26,8 +26,17 @@ public class SecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
+                // Docs
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
+                // CORS preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Public reads: category dropdown (frontend)
+                .requestMatchers(HttpMethod.GET, "/tickets/categories").permitAll()
+                .requestMatchers(HttpMethod.GET, "/tickets/categories/**").permitAll()
+
+                // Everything else requires auth
                 .anyRequest().authenticated()
             );
         return http.build();

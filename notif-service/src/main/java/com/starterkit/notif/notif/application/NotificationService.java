@@ -224,7 +224,11 @@ public class NotificationService {
         String recipientFilter = (recipient != null && !recipient.isBlank())
                 ? recipient.trim() : null;
         return notificationRepository
-                .search(channel, status, recipientFilter, pageable)
+                .search(
+                        channel != null ? channel.name() : null,
+                        status != null ? status.name() : null,
+                        recipientFilter,
+                        pageable)
                 .map(this::toResponse);
     }
 

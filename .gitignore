@@ -86,3 +86,4 @@ all_project_files.txt
 backend-dump.txt
 .idea/
 *.iml
+e2e-tests/

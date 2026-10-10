@@ -23,35 +23,41 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     boolean existsByEventId(UUID eventId);
 
-    @Query("""
-        SELECT n FROM Notification n
-        WHERE (:channel IS NULL OR n.channel = :channel)
-          AND (:status  IS NULL OR n.status  = :status)
-          AND (:recipient IS NULL
-               OR LOWER(n.recipient) LIKE LOWER(CONCAT('%', :recipient, '%')))
-        ORDER BY n.createdAt DESC
-    """)
+    /**
+     * Combined-filter search.
+     *
+     * The upper-level service still passes enums for channel/status
+     * (which Hibernate serializes as strings because the entity uses
+     * @Enumerated(EnumType.STRING)). The native query uses explicit
+     * TEXT casts to avoid PostgreSQL's "function lower(bytea) does
+     * not exist" error when :recipient is null.
+     */
+    @Query(value = """
+        SELECT * FROM notif.notifications n
+        WHERE (CAST(:channel AS TEXT) IS NULL OR n.channel = CAST(:channel AS TEXT))
+          AND (CAST(:status  AS TEXT) IS NULL OR n.status  = CAST(:status  AS TEXT))
+          AND (CAST(:recipient AS TEXT) IS NULL
+               OR LOWER(n.recipient) LIKE LOWER(CONCAT('%', CAST(:recipient AS TEXT), '%')))
+        ORDER BY n.created_at DESC
+        """,
+        countQuery = """
+        SELECT COUNT(*) FROM notif.notifications n
+        WHERE (CAST(:channel AS TEXT) IS NULL OR n.channel = CAST(:channel AS TEXT))
+          AND (CAST(:status  AS TEXT) IS NULL OR n.status  = CAST(:status  AS TEXT))
+          AND (CAST(:recipient AS TEXT) IS NULL
+               OR LOWER(n.recipient) LIKE LOWER(CONCAT('%', CAST(:recipient AS TEXT), '%')))
+        """,
+        nativeQuery = true)
     Page<Notification> search(
-            @Param("channel") Notification.Channel channel,
-            @Param("status") Notification.Status status,
+            @Param("channel") String channel,
+            @Param("status") String status,
             @Param("recipient") String recipient,
-            Pageable pageable
-    );
+            Pageable pageable);
 
     // =====================================================
     // Retry job queries (V3)
     // =====================================================
 
-    /**
-     * Atomically claim a batch of retry-eligible notifications.
-     *
-     * Eligible = status IN (PENDING, FAILED)
-     *            AND next_attempt_at <= NOW()
-     *            AND (locked_until IS NULL OR locked_until < NOW())
-     *            AND attempts < :maxAttempts
-     *
-     * Uses FOR UPDATE SKIP LOCKED for multi-instance safety.
-     */
     @Query(value = """
         UPDATE notif.notifications
         SET claimed_by = :instanceId,
@@ -74,10 +80,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             @Param("leaseSeconds") int leaseSeconds,
             @Param("maxAttempts") int maxAttempts);
 
-    /**
-     * Reset expired claims back to retry-eligible.
-     * Only clears the lease; does NOT reset attempts.
-     */
     @Modifying
     @Query(value = """
         UPDATE notif.notifications
@@ -89,10 +91,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
         """, nativeQuery = true)
     int reclaimExpired();
 
-    /**
-     * Give-up query: rows that exhausted attempts and are still FAILED.
-     * Used for observability / alerts.
-     */
     @Query("""
         SELECT COUNT(n) FROM Notification n
         WHERE n.status = 'FAILED' AND n.attempts >= :maxAttempts
@@ -103,40 +101,40 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     // IN_APP queries (step D)
     // =====================================================
 
-    @org.springframework.data.jpa.repository.Query("""
+    @Query("""
         SELECT n FROM Notification n
-        WHERE n.channel = IN_APP
+        WHERE n.channel = 'IN_APP'
           AND n.recipientUserId = :userId
           AND (:unreadOnly = false OR n.readAt IS NULL)
         ORDER BY n.createdAt DESC
     """)
-    org.springframework.data.domain.Page<Notification> findInAppForUser(
-            @org.springframework.data.repository.query.Param("userId") Long userId,
-            @org.springframework.data.repository.query.Param("unreadOnly") boolean unreadOnly,
-            org.springframework.data.domain.Pageable pageable);
+    Page<Notification> findInAppForUser(
+            @Param("userId") Long userId,
+            @Param("unreadOnly") boolean unreadOnly,
+            Pageable pageable);
 
-    @org.springframework.data.jpa.repository.Query("""
+    @Query("""
         SELECT COUNT(n) FROM Notification n
-        WHERE n.channel = IN_APP
+        WHERE n.channel = 'IN_APP'
           AND n.recipientUserId = :userId
           AND n.readAt IS NULL
     """)
-    long countUnreadInApp(@org.springframework.data.repository.query.Param("userId") Long userId);
+    long countUnreadInApp(@Param("userId") Long userId);
 
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.data.jpa.repository.Query("""
+    @Modifying
+    @Query("""
         UPDATE Notification n SET n.readAt = :now
         WHERE n.id = :id AND n.recipientUserId = :userId AND n.readAt IS NULL
     """)
-    int markRead(@org.springframework.data.repository.query.Param("id") Long id,
-                 @org.springframework.data.repository.query.Param("userId") Long userId,
-                 @org.springframework.data.repository.query.Param("now") java.time.Instant now);
+    int markRead(@Param("id") Long id,
+                 @Param("userId") Long userId,
+                 @Param("now") Instant now);
 
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.data.jpa.repository.Query("""
+    @Modifying
+    @Query("""
         UPDATE Notification n SET n.readAt = :now
-        WHERE n.channel = IN_APP AND n.recipientUserId = :userId AND n.readAt IS NULL
+        WHERE n.channel = 'IN_APP' AND n.recipientUserId = :userId AND n.readAt IS NULL
     """)
-    int markAllRead(@org.springframework.data.repository.query.Param("userId") Long userId,
-                    @org.springframework.data.repository.query.Param("now") java.time.Instant now);
+    int markAllRead(@Param("userId") Long userId,
+                    @Param("now") Instant now);
 }
