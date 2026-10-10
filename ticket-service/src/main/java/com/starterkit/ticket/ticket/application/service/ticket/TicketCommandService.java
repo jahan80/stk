@@ -1,14 +1,13 @@
 package com.starterkit.ticket.ticket.application.service.ticket;
 
-import com.starterkit.ticket.shared.infrastructure.client.UserClient;
 import com.starterkit.ticket.shared.infrastructure.jwt.UserPrincipal;
 import com.starterkit.ticket.ticket.api.dto.*;
 import com.starterkit.ticket.ticket.application.event.*;
 import com.starterkit.ticket.ticket.application.exception.*;
 import com.starterkit.ticket.ticket.application.mapper.TicketMapper;
-import com.starterkit.ticket.ticket.application.service.NotificationService;
 import com.starterkit.ticket.ticket.application.service.TicketAccessService;
 import com.starterkit.ticket.ticket.application.service.TicketConfigurationService;
+import com.starterkit.ticket.ticket.application.service.TicketNotificationFacade;
 import com.starterkit.ticket.ticket.application.service.TicketNumberGenerator;
 import com.starterkit.ticket.ticket.domain.entity.*;
 import com.starterkit.ticket.ticket.domain.repository.*;
@@ -23,7 +22,10 @@ import java.util.List;
 
 /**
  * Command side of the ticket domain: create, close, change status.
- * Replaces TicketService (split into command/query/assignment/comment).
+ *
+ * Notifications are emitted as NOTIFICATION_REQUESTED events via
+ * TicketNotificationFacade (which goes through the transactional
+ * outbox). notif-service decides how to deliver them.
  */
 @Slf4j
 @Service
@@ -38,12 +40,7 @@ public class TicketCommandService {
     private final TicketMapper mapper;
     private final TicketConfigurationService config;
     private final TicketEventPublisher eventPublisher;
-    private final NotificationService notificationService;
-    private final UserClient userClient;
-
-    // =====================================================
-    // CREATE
-    // =====================================================
+    private final TicketNotificationFacade notificationFacade;
 
     @Transactional
     public TicketResponse create(UserPrincipal user, CreateTicketRequest req) {
@@ -79,28 +76,18 @@ public class TicketCommandService {
 
         boolean notifyAdmins = config.getBoolean("TICKET.NOTIFY.ADMIN.ON_CREATE", true);
         if (notifyAdmins) {
-            List<Long> adminIds = userClient.getAdminIds();
-            if (!adminIds.isEmpty()) {
-                notificationService.createForMany(
-                        adminIds,
-                        NotificationType.TICKET_CREATED,
-                        String.format("New ticket: %s", saved.getTicketNumber()),
-                        saved.getTitle(),
-                        saved.getId(),
-                        user.getId(),
-                        "/tickets/" + saved.getId()
-                );
-                log.info("Admin notifications sent for ticket {} to {} admin(s)",
-                        saved.getTicketNumber(), adminIds.size());
-            }
+            notificationFacade.notifyAdmins(
+                    user.getId(),
+                    NotificationType.TICKET_CREATED,
+                    String.format("New ticket: %s", saved.getTicketNumber()),
+                    saved.getTitle(),
+                    saved.getId(),
+                    "/tickets/" + saved.getId()
+            );
         }
 
         return toResponse(saved, true, user);
     }
-
-    // =====================================================
-    // CLOSE (owner or admin)
-    // =====================================================
 
     @Transactional
     public TicketResponse close(UserPrincipal user, Long id) {
@@ -128,10 +115,6 @@ public class TicketCommandService {
 
         return toResponse(saved, true, user);
     }
-
-    // =====================================================
-    // CHANGE STATUS (agent/admin)
-    // =====================================================
 
     @Transactional
     public TicketResponse changeStatus(UserPrincipal user, Long id, TicketStatus newStatus) {
@@ -168,20 +151,16 @@ public class TicketCommandService {
         recipients.add(t.getCreatedBy());
         if (t.getAssignedTo() != null) recipients.add(t.getAssignedTo());
 
-        notificationService.createForMany(
+        notificationFacade.notifyUsers(
                 recipients,
+                actorId,
                 NotificationType.TICKET_STATUS_CHANGED,
                 String.format("%s status changed", t.getTicketNumber()),
                 oldS + " → " + newS,
                 t.getId(),
-                actorId,
                 "/tickets/" + t.getId()
         );
     }
-
-    // =====================================================
-    // HELPERS
-    // =====================================================
 
     private Instant computeSlaDeadline(TicketPriority priority) {
         int hours = switch (priority) {
@@ -203,13 +182,9 @@ public class TicketCommandService {
         };
     }
 
-    /**
-     * Single-ticket response builder used by command methods.
-     * Loads category/group/comments eagerly for the response.
-     */
     private TicketResponse toResponse(Ticket t, boolean withComments, UserPrincipal viewer) {
         TicketCategory cat = categoryRepo.findById(t.getCategoryId()).orElse(null);
-        TicketGroup grp = null; // groups handled by query service when needed
+        TicketGroup grp = null;
 
         String viewerRole = "USER";
         if (viewer != null) {

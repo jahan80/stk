@@ -5,8 +5,8 @@ import com.starterkit.ticket.ticket.api.dto.*;
 import com.starterkit.ticket.ticket.application.event.*;
 import com.starterkit.ticket.ticket.application.exception.*;
 import com.starterkit.ticket.ticket.application.mapper.TicketMapper;
-import com.starterkit.ticket.ticket.application.service.NotificationService;
 import com.starterkit.ticket.ticket.application.service.TicketAccessService;
+import com.starterkit.ticket.ticket.application.service.TicketNotificationFacade;
 import com.starterkit.ticket.ticket.domain.entity.*;
 import com.starterkit.ticket.ticket.domain.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * Assignment side of the ticket domain: assign user / group.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,7 +29,7 @@ public class TicketAssignmentService {
     private final TicketAccessService access;
     private final TicketMapper mapper;
     private final TicketEventPublisher eventPublisher;
-    private final NotificationService notificationService;
+    private final TicketNotificationFacade notificationFacade;
 
     @Transactional
     public TicketResponse assign(UserPrincipal user, Long id, Long assigneeId) {
@@ -64,13 +61,13 @@ public class TicketAssignmentService {
         eventPublisher.publish(new TicketAssignedEvent(
                 saved.getId(), saved.getTicketNumber(), assigneeId, user.getId()));
 
-        notificationService.create(
-                assigneeId,
+        notificationFacade.notifyUsers(
+                List.of(assigneeId),
+                user.getId(),
                 NotificationType.TICKET_ASSIGNED,
                 String.format("Assigned: %s", saved.getTicketNumber()),
                 saved.getTitle(),
                 saved.getId(),
-                user.getId(),
                 "/tickets/" + saved.getId()
         );
 

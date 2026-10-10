@@ -8,8 +8,8 @@ import com.starterkit.ticket.ticket.application.event.TicketEventPublisher;
 import com.starterkit.ticket.ticket.application.exception.*;
 import com.starterkit.ticket.ticket.application.mapper.TicketMapper;
 import com.starterkit.ticket.ticket.application.service.MentionService;
-import com.starterkit.ticket.ticket.application.service.NotificationService;
 import com.starterkit.ticket.ticket.application.service.TicketAccessService;
+import com.starterkit.ticket.ticket.application.service.TicketNotificationFacade;
 import com.starterkit.ticket.ticket.domain.entity.*;
 import com.starterkit.ticket.ticket.domain.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Comment + mention side of the ticket domain.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,7 +33,7 @@ public class TicketCommentService {
     private final TicketAccessService access;
     private final TicketMapper mapper;
     private final TicketEventPublisher eventPublisher;
-    private final NotificationService notificationService;
+    private final TicketNotificationFacade notificationFacade;
     private final MentionService mentionService;
     private final UserClient userClient;
 
@@ -68,13 +65,13 @@ public class TicketCommentService {
         recipients.add(t.getCreatedBy());
         if (t.getAssignedTo() != null) recipients.add(t.getAssignedTo());
 
-        notificationService.createForMany(
+        notificationFacade.notifyUsers(
                 recipients,
+                user.getId(),
                 NotificationType.TICKET_COMMENTED,
                 String.format("New comment on %s", t.getTicketNumber()),
                 body.length() > 100 ? body.substring(0, 100) + "..." : body,
                 t.getId(),
-                user.getId(),
                 "/tickets/" + t.getId()
         );
 
@@ -84,13 +81,13 @@ public class TicketCommentService {
             if (!userIds.isEmpty()) {
                 List<Long> recipientIds = new ArrayList<>(userIds.values());
 
-                notificationService.createForMany(
+                notificationFacade.notifyUsers(
                         recipientIds,
+                        user.getId(),
                         NotificationType.TICKET_MENTIONED,
                         String.format("You were mentioned on %s", t.getTicketNumber()),
                         body.length() > 200 ? body.substring(0, 200) + "..." : body,
                         t.getId(),
-                        user.getId(),
                         "/tickets/" + t.getId()
                 );
                 log.info("Mention notifications sent for ticket {} to {} user(s)",
